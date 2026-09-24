@@ -30,6 +30,7 @@ jobs:
           mkdir _site
           cp index.html 404.html 標註.html 學習.html library.json _site/
           cp -r models _site/
+          if [ -f config.json ]; then cp config.json _site/; fi
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

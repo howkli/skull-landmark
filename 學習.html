@@ -898,6 +898,87 @@ function drawLines(lines) {
   }
 }
 
+// ===== cloud.js =====
+// 線上教材（Firebase）：網站根目錄有 config.json（含 firebase 設定）才啟用。
+// 權限由 Firestore 規則在伺服器端把關：人人可讀；只有 teachers 名單上的 Google 帳號能新增、修改教材。
+// 這裡的 cloud.teacher 只用來決定按鈕顯示，真正能不能寫由規則決定（前端判斷只是介面，不是防線）。
+const cloud = { enabled: false, user: null, teacher: false, db: null, auth: null, fs: null, authApi: null, onChange: null };
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
+let cloudReady = null;
+const initCloudOnce = () => cloudReady || (cloudReady = initCloud()); // 兩頁共用，只初始化一次
+
+async function initCloud() {
+  if (!location.protocol.startsWith('http')) return cloud;
+  let config = null;
+  try {
+    const response = await fetch('config.json', { cache: 'no-store' });
+    if (response.ok) config = (await response.json())?.firebase || null;
+  } catch { /* 沒有設定檔＝不啟用線上教材 */ }
+  if (!config?.apiKey) return cloud;
+  try {
+    const [appApi, authApi, fs] = await Promise.all([
+      import(`${FIREBASE_SDK}firebase-app.js`), import(`${FIREBASE_SDK}firebase-auth.js`), import(`${FIREBASE_SDK}firebase-firestore.js`)]);
+    const app = appApi.initializeApp(config);
+    Object.assign(cloud, { enabled: true, auth: authApi.getAuth(app), db: fs.getFirestore(app), fs, authApi });
+    authApi.onAuthStateChanged(cloud.auth, async user => {
+      cloud.user = user;
+      cloud.teacher = user ? await isTeacher(user) : false;
+      cloud.onChange?.();
+    });
+  } catch (error) {
+    console.warn('線上教材載入失敗，改用唯讀模式', error);
+  }
+  return cloud;
+}
+
+async function isTeacher(user) {
+  try {
+    const snap = await cloud.fs.getDoc(cloud.fs.doc(cloud.db, 'teachers', user.email));
+    return snap.exists();
+  } catch { return false; } // 不在名單上時規則會拒絕讀取，一樣當成不是教學者
+}
+
+async function cloudSignIn() {
+  const provider = new cloud.authApi.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  await cloud.authApi.signInWithPopup(cloud.auth, provider); // 只用彈出視窗：GitHub Pages 與 Firebase 不同網域，轉址登入在新版瀏覽器會失效
+}
+async function cloudSignOut() { await cloud.authApi.signOut(cloud.auth); }
+
+// 文件 ID＝模型代號__教材名稱（名稱裡的 / 換成全形，Firestore 的 ID 不能有 /）
+const cloudSetId = (modelId, name) => `${modelId}__${String(name).replace(/\//g, '／')}`;
+
+async function listCloudSets(modelId) {
+  const { collection, query, where, getDocs } = cloud.fs;
+  const snap = await getDocs(query(collection(cloud.db, 'landmarkSets'), where('modelId', '==', modelId)));
+  return snap.docs.map(item => {
+    const data = item.data();
+    return { name: data.name, count: data.count, savedAt: data.savedAt, annotator: data.updatedBy || '', cloudId: item.id, online: true };
+  });
+}
+
+async function fetchCloudSet(cloudId) {
+  const snap = await cloud.fs.getDoc(cloud.fs.doc(cloud.db, 'landmarkSets', cloudId));
+  if (!snap.exists()) throw new Error('線上找不到這份教材（可能剛被刪除）');
+  return JSON.parse(snap.data().json);
+}
+
+// expectedSavedAt：開啟時那份教材的存檔時間；線上版本比它新，代表別人改過，丟出 CONFLICT，不覆蓋
+async function saveCloudSet(modelId, name, doc, expectedSavedAt) {
+  const { doc: docRef, collection, runTransaction, serverTimestamp } = cloud.fs;
+  const id = cloudSetId(modelId, name);
+  const ref = docRef(cloud.db, 'landmarkSets', id);
+  await runTransaction(cloud.db, async transaction => {
+    const current = await transaction.get(ref);
+    if (current.exists() && current.data().savedAt !== (expectedSavedAt || '')) throw new Error('CONFLICT');
+    const data = { modelId, name, json: JSON.stringify(doc), count: Object.keys(doc.landmarks || {}).length, savedAt: doc.exportedAt,
+      updatedBy: cloud.user.email, updatedAt: serverTimestamp() };
+    transaction.set(ref, data);
+    transaction.set(docRef(collection(cloud.db, 'landmarkSets', id, 'history')), data); // 每次存檔都留一份歷史，改壞了可以救
+  });
+  return { cloudId: id, savedAt: doc.exportedAt };
+}
+
 // ===== library.js =====
 // 模型庫：有本機伺服器（serve.py）時列出模型、讀寫標註檔；放在靜態網站（例如 GitHub Pages）時讀同資料夾的 library.json（唯讀）；
 // 直接雙擊 HTML（file://）時退回「開啟檔案」。
@@ -921,7 +1002,20 @@ async function loadCatalog() {
     const models = response.ok ? await response.json() : null;
     if (Array.isArray(models)) { library.models = models; library.static = true; }
   } catch { /* 也沒有靜態目錄 */ }
+  if (library.static) await mergeCloudSets();
   return library.models;
+}
+
+// 線上教材（Firebase）併進模型庫；同名時以線上版為準（線上版才是教學者最新存的）
+async function mergeCloudSets() {
+  await initCloudOnce();
+  if (!cloud.enabled) return;
+  await Promise.all(library.models.map(async model => {
+    try {
+      const online = await listCloudSets(model.id);
+      model.landmarkSets = [...online, ...model.landmarkSets.filter(set => !online.some(item => item.name === set.name))];
+    } catch (error) { console.warn('讀取線上教材失敗', error); }
+  }));
 }
 
 async function apiJson(response) {
@@ -951,6 +1045,7 @@ async function fetchModelBuffer(model) {
 }
 async function fetchLandmarkSet(model, name) {
   const set = model.landmarkSets.find(item => item.name === name);
+  if (set?.cloudId) return fetchCloudSet(set.cloudId);
   if (set?.file) return apiJson(await fetch(set.file, { cache: 'no-store' }));
   return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, { cache: 'no-store' }));
 }
@@ -997,7 +1092,7 @@ function renderLibrary(currentId = '', { requireSets = false } = {}) {
         ${model.sensitive ? '<span class="badge warnBadge">大體老師資料</span>' : ''}</div>
       ${model.description ? `<p>${escapeHtml(model.description)}</p>` : ''}
       <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset} · ${model.landmarkSets.length} 份標註</small>
-      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}</button>`).join('')}</div>` : ''}
+      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}${set.online ? ' · 線上' : ''}</button>`).join('')}</div>` : ''}
     </div>`).join('');
   list.querySelectorAll('.modelCard').forEach(card => {
     const model = library.models.find(item => item.id === card.dataset.model);
@@ -1036,7 +1131,17 @@ const REGION_ORDER = ['顏面・眼眶', '顏面・鼻', '顏面・上頷', '顱
 const SIDE_TEXT = { L: '左側', R: '右側', M: '中線' };
 
 const baseCode = code => String(code).replace(/_(L|R)$/, '');
-const kbOf = definition => SKULL_KB[baseCode(definition.code)] || null;
+// 自訂點（例如「Pterion_R」「Mental foramen_R」）沒有內建代號：改用名稱對內建講解的英文名、中文名、代號與別名
+const normalizeName = name => String(name || '').toLowerCase().replace(/[_\-]+/g, ' ')
+  .replace(/\s*[（(]?\s*(左|右|left|right)\s*[)）]?\s*$/, '').replace(/\s+(l|r)$/, '').replace(/^(左|右)\s*/, '').replace(/\s+/g, ' ').trim();
+const KB_BY_NAME = (() => {
+  const map = {};
+  for (const [code, entry] of Object.entries(SKULL_KB)) {
+    for (const key of [code, entry.abbr, entry.en, entry.zh, ...(entry.aliases || [])]) if (key) map[normalizeName(key)] = code;
+  }
+  return map;
+})();
+const kbOf = definition => SKULL_KB[baseCode(definition.code)] || SKULL_KB[KB_BY_NAME[normalizeName(definition.name)]] || null;
 const regionOf = definition => kbOf(definition)?.region || '自訂構造';
 const EXPLAINERS = [
   definition => { const kb = kbOf(definition); return kb ? { source: 'kb', ...kb } : null; },

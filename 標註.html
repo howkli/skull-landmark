@@ -224,6 +224,7 @@ table.measure tr.highlight { background: var(--accent-soft); }
       <button class="btn" id="undo" disabled>復原</button>
       <select class="btn" id="exportMenu" aria-label="匯出"><option value="">匯出…</option><option value="json">JSON（下載）</option><option value="csv">CSV（R／Excel）</option><option value="slicer">3D Slicer（.mrk.json）</option></select>
       <button class="btn primary" id="save">存成 JSON</button>
+      <button class="btn hidden" id="cloudLogin">教學者登入</button>
       <span class="saveState" id="saveState">尚未載入模型</span>
     </div>
   </header>
@@ -903,6 +904,87 @@ function drawLines(lines) {
   }
 }
 
+// ===== cloud.js =====
+// 線上教材（Firebase）：網站根目錄有 config.json（含 firebase 設定）才啟用。
+// 權限由 Firestore 規則在伺服器端把關：人人可讀；只有 teachers 名單上的 Google 帳號能新增、修改教材。
+// 這裡的 cloud.teacher 只用來決定按鈕顯示，真正能不能寫由規則決定（前端判斷只是介面，不是防線）。
+const cloud = { enabled: false, user: null, teacher: false, db: null, auth: null, fs: null, authApi: null, onChange: null };
+const FIREBASE_SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
+let cloudReady = null;
+const initCloudOnce = () => cloudReady || (cloudReady = initCloud()); // 兩頁共用，只初始化一次
+
+async function initCloud() {
+  if (!location.protocol.startsWith('http')) return cloud;
+  let config = null;
+  try {
+    const response = await fetch('config.json', { cache: 'no-store' });
+    if (response.ok) config = (await response.json())?.firebase || null;
+  } catch { /* 沒有設定檔＝不啟用線上教材 */ }
+  if (!config?.apiKey) return cloud;
+  try {
+    const [appApi, authApi, fs] = await Promise.all([
+      import(`${FIREBASE_SDK}firebase-app.js`), import(`${FIREBASE_SDK}firebase-auth.js`), import(`${FIREBASE_SDK}firebase-firestore.js`)]);
+    const app = appApi.initializeApp(config);
+    Object.assign(cloud, { enabled: true, auth: authApi.getAuth(app), db: fs.getFirestore(app), fs, authApi });
+    authApi.onAuthStateChanged(cloud.auth, async user => {
+      cloud.user = user;
+      cloud.teacher = user ? await isTeacher(user) : false;
+      cloud.onChange?.();
+    });
+  } catch (error) {
+    console.warn('線上教材載入失敗，改用唯讀模式', error);
+  }
+  return cloud;
+}
+
+async function isTeacher(user) {
+  try {
+    const snap = await cloud.fs.getDoc(cloud.fs.doc(cloud.db, 'teachers', user.email));
+    return snap.exists();
+  } catch { return false; } // 不在名單上時規則會拒絕讀取，一樣當成不是教學者
+}
+
+async function cloudSignIn() {
+  const provider = new cloud.authApi.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: 'select_account' });
+  await cloud.authApi.signInWithPopup(cloud.auth, provider); // 只用彈出視窗：GitHub Pages 與 Firebase 不同網域，轉址登入在新版瀏覽器會失效
+}
+async function cloudSignOut() { await cloud.authApi.signOut(cloud.auth); }
+
+// 文件 ID＝模型代號__教材名稱（名稱裡的 / 換成全形，Firestore 的 ID 不能有 /）
+const cloudSetId = (modelId, name) => `${modelId}__${String(name).replace(/\//g, '／')}`;
+
+async function listCloudSets(modelId) {
+  const { collection, query, where, getDocs } = cloud.fs;
+  const snap = await getDocs(query(collection(cloud.db, 'landmarkSets'), where('modelId', '==', modelId)));
+  return snap.docs.map(item => {
+    const data = item.data();
+    return { name: data.name, count: data.count, savedAt: data.savedAt, annotator: data.updatedBy || '', cloudId: item.id, online: true };
+  });
+}
+
+async function fetchCloudSet(cloudId) {
+  const snap = await cloud.fs.getDoc(cloud.fs.doc(cloud.db, 'landmarkSets', cloudId));
+  if (!snap.exists()) throw new Error('線上找不到這份教材（可能剛被刪除）');
+  return JSON.parse(snap.data().json);
+}
+
+// expectedSavedAt：開啟時那份教材的存檔時間；線上版本比它新，代表別人改過，丟出 CONFLICT，不覆蓋
+async function saveCloudSet(modelId, name, doc, expectedSavedAt) {
+  const { doc: docRef, collection, runTransaction, serverTimestamp } = cloud.fs;
+  const id = cloudSetId(modelId, name);
+  const ref = docRef(cloud.db, 'landmarkSets', id);
+  await runTransaction(cloud.db, async transaction => {
+    const current = await transaction.get(ref);
+    if (current.exists() && current.data().savedAt !== (expectedSavedAt || '')) throw new Error('CONFLICT');
+    const data = { modelId, name, json: JSON.stringify(doc), count: Object.keys(doc.landmarks || {}).length, savedAt: doc.exportedAt,
+      updatedBy: cloud.user.email, updatedAt: serverTimestamp() };
+    transaction.set(ref, data);
+    transaction.set(docRef(collection(cloud.db, 'landmarkSets', id, 'history')), data); // 每次存檔都留一份歷史，改壞了可以救
+  });
+  return { cloudId: id, savedAt: doc.exportedAt };
+}
+
 // ===== library.js =====
 // 模型庫：有本機伺服器（serve.py）時列出模型、讀寫標註檔；放在靜態網站（例如 GitHub Pages）時讀同資料夾的 library.json（唯讀）；
 // 直接雙擊 HTML（file://）時退回「開啟檔案」。
@@ -926,7 +1008,20 @@ async function loadCatalog() {
     const models = response.ok ? await response.json() : null;
     if (Array.isArray(models)) { library.models = models; library.static = true; }
   } catch { /* 也沒有靜態目錄 */ }
+  if (library.static) await mergeCloudSets();
   return library.models;
+}
+
+// 線上教材（Firebase）併進模型庫；同名時以線上版為準（線上版才是教學者最新存的）
+async function mergeCloudSets() {
+  await initCloudOnce();
+  if (!cloud.enabled) return;
+  await Promise.all(library.models.map(async model => {
+    try {
+      const online = await listCloudSets(model.id);
+      model.landmarkSets = [...online, ...model.landmarkSets.filter(set => !online.some(item => item.name === set.name))];
+    } catch (error) { console.warn('讀取線上教材失敗', error); }
+  }));
 }
 
 async function apiJson(response) {
@@ -956,6 +1051,7 @@ async function fetchModelBuffer(model) {
 }
 async function fetchLandmarkSet(model, name) {
   const set = model.landmarkSets.find(item => item.name === name);
+  if (set?.cloudId) return fetchCloudSet(set.cloudId);
   if (set?.file) return apiJson(await fetch(set.file, { cache: 'no-store' }));
   return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, { cache: 'no-store' }));
 }
@@ -1002,7 +1098,7 @@ function renderLibrary(currentId = '', { requireSets = false } = {}) {
         ${model.sensitive ? '<span class="badge warnBadge">大體老師資料</span>' : ''}</div>
       ${model.description ? `<p>${escapeHtml(model.description)}</p>` : ''}
       <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset} · ${model.landmarkSets.length} 份標註</small>
-      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}</button>`).join('')}</div>` : ''}
+      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}${set.online ? ' · 線上' : ''}</button>`).join('')}</div>` : ''}
     </div>`).join('');
   list.querySelectorAll('.modelCard').forEach(card => {
     const model = library.models.find(item => item.id === card.dataset.model);
@@ -1330,7 +1426,7 @@ function buildDocument() {
     measurementDefinitions: state.measurementDefs,
     measurements: results.map(item => ({ code: item.code, name: item.name, type: item.type, points: item.points, value: item.value == null ? null : round(item.value, 3), unit: item.unit })),
     indices: indices.map(item => ({ code: item.code, name: item.name, value: item.value == null ? null : round(item.value, 2), category: item.category })),
-    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 00:46' },
+    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 01:20' },
   };
 }
 
@@ -1360,6 +1456,25 @@ async function saveToLibrary() {
   } catch (error) { toast(error.message || '存檔失敗；原檔沒有變動', 'bad'); }
 }
 
+// 線上教材：名單上的教學者直接存到網站（Firestore）；別人先改過就拒絕覆蓋。能不能寫由 Firestore 規則把關
+async function saveToCloud() {
+  const doc = buildDocument(), name = state.setName, model = state.libraryModel, count = Object.keys(doc.landmarks).length;
+  const existing = model.landmarkSets?.find(set => set.name === name && set.online);
+  if (!confirm(existing ? `以目前 ${count} 點更新網站上的教材「${name}」？（舊版會留在歷史紀錄）` : `在網站上建立教材「${name}」（${count} 點）？`)) return;
+  try {
+    const result = await saveCloudSet(model.id, name, doc, existing ? state.serverSavedAt : '');
+    state.serverSavedAt = result.savedAt;
+    state.dirty = false; state.lastSaved = `網站「${name}」`;
+    rememberModel(model, name);
+    await loadCatalog();
+    state.libraryModel = library.models.find(item => item.id === model.id) || model;
+    update(); toast(`已存到網站：「${name}」（${count} 點）；學習頁重新整理就看得到`);
+  } catch (error) {
+    toast(error?.message === 'CONFLICT' ? `網站上的「${name}」已被別人更新：請從模型庫開最新版再改，或換一個教材名稱`
+      : `存到網站失敗：${error?.message || error}`, 'bad');
+  }
+}
+
 // 3D Slicer Markups（.mrk.json）：LPS、mm。本工具擺正後是 +X 左、+Y 上、+Z 前，所以 LPS = (x, −z, y)。
 // 只有「卡尺校正＋法蘭克福擺正」都做了才有解剖意義，否則拒絕匯出。
 function buildSlicerMarkups() {
@@ -1386,6 +1501,7 @@ function downloadText(fileName, text, type) {
 async function saveJson() {
   if (!state.model) return;
   if (library.server && state.libraryModel) return saveToLibrary();
+  if (cloud.teacher && state.libraryModel) return saveToCloud();
   const text = JSON.stringify(buildDocument(), null, 2), fileName = `${state.setName}.json`;
   if (window.showSaveFilePicker) {
     try {
@@ -1660,6 +1776,7 @@ async function openModel(buffer, fileName, { libraryModel = null, setDoc = null 
     setMaterialMode(model, state.display.mode, state.display.opacity);
     setLoading(false);
     update({ front: true });
+    renderCloud();
     toast(message, type);
   } catch (error) {
     failLoading('模型讀取失敗', error?.message || String(error));
@@ -1788,6 +1905,22 @@ $('addLandmark').onclick = () => openLandmarkModal();
 $('place').onclick = () => { state.placing = !state.placing; renderMode(); };
 $('undo').onclick = undo;
 $('save').onclick = saveJson;
+// 教學者登入（Google）：名單上的帳號「存成 JSON」會變成「存到網站」；其他人照樣能練習，但只能下載
+function renderCloud() {
+  $('cloudLogin').classList.toggle('hidden', !cloud.enabled);
+  $('cloudLogin').textContent = cloud.user ? `登出（${cloud.user.email}）` : '教學者登入';
+  $('save').textContent = cloud.teacher && state.libraryModel ? '存到網站' : '存成 JSON';
+  $('save').title = cloud.user && !cloud.teacher ? '這個 Google 帳號不在教學者名單，只能下載 JSON' : '';
+}
+$('cloudLogin').onclick = async () => {
+  try { if (cloud.user) await cloudSignOut(); else await cloudSignIn(); }
+  catch (error) { if (error?.code !== 'auth/popup-closed-by-user') toast(`登入失敗：${error?.message || error}`, 'bad'); }
+};
+cloud.onChange = () => {
+  renderCloud();
+  if (cloud.teacher) toast('教學者已登入：「存到網站」會直接更新網站上的教材');
+  else if (cloud.user) toast('這個帳號不在教學者名單：可以練習標註，但只能下載 JSON', 'warn');
+};
 $('exportMenu').onchange = event => {
   const kind = event.target.value;
   event.target.value = '';
@@ -1894,6 +2027,7 @@ if (params.has('debug')) window.__skull = { state, library, buildDocument, build
   snapshot: async (name, view) => (await fetch(`/api/snapshot?name=${encodeURIComponent(name)}`, { method: 'POST', body: await snapshotFromCamera(view) })).json() };
 (async () => {
   await loadCatalog();
+  renderCloud();
   $('openModel').textContent = hasCatalog() ? '模型庫' : '開啟模型';
   if (params.get('model')) return openFromUrl(params.get('model'));
   if (!hasCatalog()) return; // file://：顯示拖放區，等使用者開檔
