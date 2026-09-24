@@ -169,6 +169,9 @@ table.measure tr.highlight { background: var(--accent-soft); }
 .setChips { display: flex; gap: 6px; flex-wrap: wrap; }
 .chip { border: 1px solid var(--accent); color: #07667a; background: var(--panel); border-radius: 99px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
 .chip:hover { background: var(--accent-soft); }
+.archivedSets { font-size: 12px; color: var(--muted); }
+.archivedSets summary { cursor: pointer; margin-bottom: 6px; }
+.chip.archivedChip { border-color: var(--line); color: var(--muted); }
 .sensitiveBanner { position: absolute; bottom: 64px; left: 12px; background: rgba(179, 84, 30, .92); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; box-shadow: var(--shadow); z-index: 2; max-width: calc(100% - 24px); }
 
 /* 觸控裝置（手機、平板）：提示改觸控用語 */
@@ -953,7 +956,9 @@ async function listCloudSets(modelId) {
   const snap = await getDocs(query(collection(cloud.db, 'landmarkSets'), where('modelId', '==', modelId)));
   return snap.docs.map(item => {
     const data = item.data();
-    return { name: data.name, count: data.count, savedAt: data.savedAt, annotator: data.updatedBy || '', cloudId: item.id, online: true };
+    // publishedAt 用伺服器時間排「目前版本」，不受教學者電腦時鐘影響
+    return { name: data.name, count: data.count, savedAt: data.savedAt, publishedAt: data.updatedAt?.toDate?.()?.toISOString() || data.savedAt,
+      annotator: data.updatedBy || '', cloudId: item.id, online: true };
   });
 }
 
@@ -986,6 +991,16 @@ const LAST_MODEL_KEY = 'skull-annotator:last-model';
 const library = { server: false, static: false, models: [], onPick: null, onOpenFile: null };
 const hasCatalog = () => library.server || library.static; // 有模型可挑（本機伺服器或靜態目錄）
 const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點' };
+// 每個模型只有一份「目前版本」＝最後存檔的那份（線上版以伺服器時間為準），學習頁只給學生看這份；
+// 其他版本自動封存：不刪除，學習頁不列，標註頁收在「封存」裡，教學者打開改好再存，就變成新的目前版本。
+const setTime = set => Date.parse(set.publishedAt || set.savedAt || '') || 0;
+function markCurrentSets() {
+  for (const model of library.models) {
+    model.landmarkSets = [...(model.landmarkSets || [])].sort((a, b) => setTime(b) - setTime(a)); // 同時間保留原順序（線上版在前）
+    model.landmarkSets.forEach((set, index) => { set.archived = index > 0; });
+  }
+}
+const currentSet = model => model?.landmarkSets?.find(set => !set.archived) || null;
 
 async function loadCatalog() {
   library.server = false;
@@ -995,7 +1010,7 @@ async function loadCatalog() {
   try {
     const response = await fetch('/api/models', { cache: 'no-store' });
     const models = response.ok ? await response.json() : null;
-    if (Array.isArray(models)) { library.models = models; library.server = true; return library.models; }
+    if (Array.isArray(models)) { library.models = models; library.server = true; markCurrentSets(); return library.models; }
   } catch { /* 沒有本機伺服器 */ }
   try { // 靜態網站：library.json 列出模型檔與唯讀的標註檔（相對路徑）
     const response = await fetch('library.json', { cache: 'no-store' });
@@ -1003,6 +1018,7 @@ async function loadCatalog() {
     if (Array.isArray(models)) { library.models = models; library.static = true; }
   } catch { /* 也沒有靜態目錄 */ }
   if (library.static) await mergeCloudSets();
+  markCurrentSets();
   return library.models;
 }
 
@@ -1071,33 +1087,44 @@ function formatSavedAt(value) {
   return Number.isNaN(date.getTime()) ? '' : `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-// currentId：目前開著的模型；requireSets：學習頁只列出有標註的模型
+// 教材按鈕：名稱、點數、存檔時間；markCurrent＝標註頁標出目前版本
+const setChip = (set, markCurrent = false) => `<button class="chip${set.archived ? ' archivedChip' : ''}" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${setTime(set) ? ` · ${formatSavedAt(set.publishedAt || set.savedAt)}` : ''}${set.online ? ' · 線上' : ''}${markCurrent ? ' · 目前版本' : ''}</button>`;
+
+// currentId：目前開著的模型；requireSets：學習頁用，只列出有教材的模型，而且每個模型只列目前版本
 function renderLibrary(currentId = '', { requireSets = false } = {}) {
   const list = $('libraryList');
   const models = requireSets ? library.models.filter(model => model.landmarkSets.length) : library.models;
   $('librarySubtitle').textContent = library.server
-    ? `本機伺服器找到 ${library.models.length} 個模型；雲端 vault 的「模型／」與本機私人資料夾（~/skull3d/models）都會列出來。`
+    ? `本機伺服器找到 ${library.models.length} 個模型；雲端 vault 的「模型／」與本機私人資料夾（~/skull3d/models）都會列出來。每個模型以最後存檔的標註為目前版本，其他收在「封存」。`
     : library.static
-      ? `網頁版模型庫：${library.models.length} 個模型。標註只存在這台瀏覽器的草稿，要留存請按「存成 JSON」下載檔案。`
+      ? cloud.enabled
+        ? `網頁版模型庫：${library.models.length} 個模型。學生只看得到每個模型的「目前版本」（最後存檔的那份）；教學者登入後「存到網站」，那一版就成為目前版本，其他版本自動封存。`
+        : `網頁版模型庫：${library.models.length} 個模型。標註只存在這台瀏覽器的草稿，要留存請按「存成 JSON」下載檔案。`
       : '現在是直接開檔（file://），看不到模型庫：請按下方「開啟電腦裡的檔案」，或雙擊「啟動標註器.bat」改用模型庫。';
   if (!models.length) {
     list.innerHTML = `<p class="note">${library.server ? (requireSets ? '還沒有任何標好的教材：先到標註頁標好並「存成 JSON」。' : '模型庫是空的：把 .glb 放進 vault 的「模型／」或 ~/skull3d/models。')
       : library.static ? (requireSets ? '網頁版還沒有標好的教材：可按下方「開啟電腦裡的檔案」開模型，再開下載的標註 JSON。' : '網頁版模型庫是空的。') : ''}</p>`;
     return;
   }
-  list.innerHTML = models.map(model => `
+  list.innerHTML = models.map(model => {
+    const current = model.landmarkSets.filter(set => !set.archived), archived = model.landmarkSets.filter(set => set.archived);
+    return `
     <div class="modelCard${model.id === currentId ? ' active' : ''}" data-model="${escapeHtml(model.id)}" role="button" tabindex="0">
       <div class="modelTop"><b>${escapeHtml(model.title)}</b>
         <span class="badge">${model.source === 'local' ? '本機私人（不同步）' : model.source === 'web' ? '網頁版' : '雲端 vault'}</span>
         ${model.sensitive ? '<span class="badge warnBadge">大體老師資料</span>' : ''}</div>
       ${model.description ? `<p>${escapeHtml(model.description)}</p>` : ''}
-      <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset} · ${model.landmarkSets.length} 份標註</small>
-      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}${set.online ? ' · 線上' : ''}</button>`).join('')}</div>` : ''}
-    </div>`).join('');
+      <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset}${requireSets ? '' : ` · ${model.landmarkSets.length} 份標註${archived.length ? `（${archived.length} 份封存）` : ''}`}</small>
+      ${current.length ? `<div class="setChips">${current.map(set => setChip(set, !requireSets)).join('')}</div>` : ''}
+      ${!requireSets && archived.length ? `<details class="archivedSets"><summary>封存 ${archived.length} 份：學生看不到；打開改好再存，就會變成目前版本</summary>
+        <div class="setChips">${archived.map(set => setChip(set)).join('')}</div></details>` : ''}
+    </div>`;
+  }).join('');
   list.querySelectorAll('.modelCard').forEach(card => {
     const model = library.models.find(item => item.id === card.dataset.model);
     card.onclick = event => {
       const chip = event.target.closest('[data-set]');
+      if (!chip && event.target.closest('details')) return; // 只是展開／收合封存清單，不開模型
       closeLibrary();
       library.onPick?.(model, chip ? chip.dataset.set : '');
     };
@@ -1172,7 +1199,7 @@ async function openLesson(buffer, fileName, doc, libraryModel = null) {
 }
 
 async function openLibraryLesson(model, setName) {
-  const name = setName || model.landmarkSets[0]?.name;
+  const name = setName || currentSet(model)?.name;
   if (!name) return toast('這個模型還沒有標好的教材，先到標註頁標好並存檔', 'warn');
   setLoading(true, `正在讀取「${model.title}」…`, `${model.fileName}（${model.sizeMB} MB）`);
   try {
@@ -1368,8 +1395,8 @@ bindLibraryModal();
   if (library.server) try { lesson.config = await (await fetch('/api/config', { cache: 'no-store' })).json(); } catch { /* 沒有設定就不開延伸說明 */ }
   let last = null;
   try { last = JSON.parse(localStorage.getItem(LAST_LESSON_KEY) || 'null'); } catch { /* 無 */ }
-  const model = library.models.find(item => item.id === last?.id && item.landmarkSets.some(set => set.name === last.setName));
-  if (model) openLibraryLesson(model, last.setName);
+  const model = library.models.find(item => item.id === last?.id && currentSet(item));
+  if (model) openLibraryLesson(model, currentSet(model).name); // 一律開目前版本：上次看的那份可能已經封存
   else openLibrary('', { requireSets: true });
 })();
 </script>
