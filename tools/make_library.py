@@ -8,8 +8,10 @@
 用法：python tools/make_library.py
 """
 import json
+import os
 import pathlib
 import sys
+from urllib.parse import quote
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 MODELS = ROOT / 'models'
@@ -37,10 +39,17 @@ def main():
                 continue
             sets.append({'name': file.stem, 'count': len(doc['landmarks']), 'savedAt': doc.get('exportedAt'),
                          'annotator': doc.get('annotator', ''), 'file': file.relative_to(ROOT).as_posix()})
-        entries.append({'id': glb.stem, 'source': 'web', 'fileName': glb.name, 'sizeMB': round(glb.stat().st_size / 1e6, 1),
-                        'title': meta.get('title') or glb.stem, 'description': meta.get('description', ''),
-                        'preset': meta.get('preset', 'skull'), 'sensitive': False,
-                        'file': glb.relative_to(ROOT).as_posix(), 'landmarkSets': sets})
+        relative = glb.relative_to(ROOT).as_posix()
+        entry = {'id': glb.stem, 'source': 'web', 'fileName': glb.name, 'sizeMB': round(glb.stat().st_size / 1e6, 1),
+                 'title': meta.get('title') or glb.stem, 'description': meta.get('description', ''),
+                 'preset': meta.get('preset', 'skull'), 'sensitive': False, 'file': relative, 'landmarkSets': sets}
+        # 在 GitHub Actions 裡：大檔改走 jsDelivr（部分網路連 GitHub Pages 很慢），網址綁這次部署的 commit，
+        # 換模型立刻生效；jsDelivr 單檔上限 20 MB，超過或失敗時網頁自動退回 Pages 的相對路徑。
+        repo, sha = os.environ.get('GITHUB_REPOSITORY'), os.environ.get('GITHUB_SHA')
+        if repo and sha and glb.stat().st_size < 20e6:
+            entry['file'] = f'https://cdn.jsdelivr.net/gh/{repo}@{sha}/{quote(relative)}'
+            entry['fallbackFile'] = relative
+        entries.append(entry)
     (ROOT / 'library.json').write_text(json.dumps(entries, ensure_ascii=False, indent=1), encoding='utf-8')
     for problem in problems:
         print('注意：' + problem)

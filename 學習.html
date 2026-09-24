@@ -909,10 +909,24 @@ async function apiJson(response) {
   if (!response.ok) throw new Error(payload?.error || `伺服器回應 ${response.status}`);
   return payload;
 }
+// 靜態網站的模型可能有兩個來源（CDN＋網站本身）：第一個 15 秒沒回應或失敗就換下一個
 async function fetchModelBuffer(model) {
-  const response = await fetch(model.file || `/api/models/${model.id}/file`, { cache: model.file ? 'default' : 'no-store' });
-  if (!response.ok) throw new Error(`讀不到模型檔 ${model.fileName}（${response.status}）`);
-  return response.arrayBuffer();
+  const urls = model.file ? [model.file, model.fallbackFile].filter(Boolean) : [`/api/models/${model.id}/file`];
+  let lastError = null;
+  for (const url of urls) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000); // 只限「開始回應」前的等待；下載中不中斷
+    try {
+      const response = await fetch(url, { cache: model.file ? 'default' : 'no-store', signal: controller.signal });
+      clearTimeout(timer);
+      if (response.ok) return await response.arrayBuffer();
+      lastError = new Error(`讀不到模型檔 ${model.fileName}（${response.status}）`);
+    } catch (error) {
+      clearTimeout(timer);
+      lastError = error?.name === 'AbortError' ? new Error(`讀取模型檔 ${model.fileName} 逾時`) : error;
+    }
+  }
+  throw lastError;
 }
 async function fetchLandmarkSet(model, name) {
   const set = model.landmarkSets.find(item => item.name === name);

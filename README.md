@@ -4,7 +4,9 @@
 
 - 標註頁：`標註.html`（網站首頁會自動導過去）
 - 學習頁：`學習.html`
-- 目前的模型：`models/Model-mobile.glb`（塑膠教學頭骨，MAKAR／iPhone 手機掃描）
+- 目前的模型：`models/Model-mobile.glb`（塑膠教學頭骨，MAKAR／iPhone 手機掃描）。
+  網頁版把貼圖從 PNG 轉成 JPEG（9.6 MB → 2.1 MB），網格一個位元組都沒動：幾何雜湊值與原檔相同，原檔標出的 JSON 可以直接用。
+- 大檔由 jsDelivr CDN 傳送（部分網路連 GitHub Pages 很慢），失敗時自動改從本站讀。
 
 > 這是公開網站：任何拿到網址的人都看得到。**不要上傳大體老師資料**（標成 `sensitive` 的模型會被自動拒絕）。
 
