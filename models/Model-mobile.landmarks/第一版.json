@@ -1,0 +1,593 @@
+{
+  "schema": "skull-mesh-landmarks",
+  "schemaVersion": 1,
+  "compatibleWith": "pelvis-template-landmarks（內網 8078）：landmarks 每點同樣存 faceVertexIndices＋barycentricWeights",
+  "coordinateSystem": "模型原始方向；單位 模型原始單位（未校正比例）",
+  "units": "model-units",
+  "exportedAt": "2026-09-24T17:02:03.278Z",
+  "name": "第一版",
+  "annotator": "",
+  "protocolPreset": "blank",
+  "modelGeometryHash": "0fbd801f1a6b91ec",
+  "model": {
+    "fileName": "Model-mobile.glb",
+    "meshes": [
+      {
+        "id": "model",
+        "vertexCount": 14769,
+        "faceCount": 25000
+      }
+    ],
+    "boundingBoxModel": {
+      "min": [
+        -0.4248579144477844,
+        0,
+        -0.6637142896652222
+      ],
+      "max": [
+        0.4248579144477844,
+        0.9621118307113647,
+        0.6637142896652222
+      ]
+    }
+  },
+  "transform": {
+    "matrix": [
+      [
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        1,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        1
+      ]
+    ],
+    "note": "輸出座標 = matrix × 模型座標（列優先 4×4）",
+    "scale": {
+      "factor": 1,
+      "source": "none",
+      "assumeMeters": false,
+      "rmsMm": null,
+      "pairs": []
+    },
+    "alignment": {
+      "enabled": false,
+      "method": "frankfurt-horizontal",
+      "poL": "po_L",
+      "poR": "po_R",
+      "or": "or_L",
+      "warnings": []
+    }
+  },
+  "protocol": [
+    "LM_001",
+    "LM_002",
+    "LM_003",
+    "LM_004",
+    "LM_005",
+    "LM_006",
+    "LM_007",
+    "LM_008",
+    "LM_009",
+    "LM_010",
+    "LM_011"
+  ],
+  "landmarkDefinitions": [
+    {
+      "code": "LM_001",
+      "name": "bregma",
+      "side": "M",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_002",
+      "name": "Lambda",
+      "side": "M",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_003",
+      "name": "Pterion_R",
+      "side": "R",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_004",
+      "name": "Pterion_L",
+      "side": "L",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_005",
+      "name": "Supraorbital foramen_L",
+      "side": "L",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_006",
+      "name": "Supraorbital foramen_R",
+      "side": "R",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_007",
+      "name": "Infraorbital foramen_L",
+      "side": "L",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_008",
+      "name": "Mental foramen_R",
+      "side": "R",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_009",
+      "name": "Parietal_foramen_L",
+      "side": "L",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_010",
+      "name": "parietal_foramen_R",
+      "side": "R",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_011",
+      "name": "Anterior nasal spine",
+      "side": "M",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    }
+  ],
+  "landmarks": {
+    "LM_001": {
+      "name": "bregma",
+      "bone": "model",
+      "faceIndex": 22095,
+      "faceVertexIndices": [
+        8741,
+        8920,
+        8512
+      ],
+      "barycentricWeights": [
+        0.2151962098278023,
+        0.2694215845970948,
+        0.5153822055751028
+      ],
+      "vertexIndex": 8512,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:51:43.854Z",
+      "position": [
+        0.0356,
+        0.9263,
+        -0.2371
+      ],
+      "clickPoint": [
+        0.0356,
+        0.9263,
+        -0.2371
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.0355828,
+        0.9263328,
+        -0.2371485
+      ]
+    },
+    "LM_002": {
+      "name": "Lambda",
+      "bone": "model",
+      "faceIndex": 16915,
+      "faceVertexIndices": [
+        7832,
+        7568,
+        8029
+      ],
+      "barycentricWeights": [
+        0.20546152277958674,
+        0.12375368766164997,
+        0.6707847895587633
+      ],
+      "vertexIndex": 8029,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:52:12.609Z",
+      "position": [
+        -0.0031,
+        0.3787,
+        -0.6593
+      ],
+      "clickPoint": [
+        -0.0031,
+        0.3787,
+        -0.6593
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.003117,
+        0.3786523,
+        -0.6592708
+      ]
+    },
+    "LM_003": {
+      "name": "Pterion_R",
+      "bone": "model",
+      "faceIndex": 13526,
+      "faceVertexIndices": [
+        1735,
+        1582,
+        1648
+      ],
+      "barycentricWeights": [
+        0.6385843982471517,
+        0.11062232281090813,
+        0.25079327894194015
+      ],
+      "vertexIndex": 1735,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:52:49.112Z",
+      "position": [
+        -0.2946,
+        0.6182,
+        0.1067
+      ],
+      "clickPoint": [
+        -0.2946,
+        0.6182,
+        0.1067
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.2945806,
+        0.6182108,
+        0.1066585
+      ]
+    },
+    "LM_004": {
+      "name": "Pterion_L",
+      "bone": "model",
+      "faceIndex": 15968,
+      "faceVertexIndices": [
+        13883,
+        13940,
+        13922
+      ],
+      "barycentricWeights": [
+        0.6058617285170282,
+        0.3512579451569435,
+        0.04288032632602825
+      ],
+      "vertexIndex": 13883,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:53:20.504Z",
+      "position": [
+        0.3288,
+        0.6272,
+        0.11
+      ],
+      "clickPoint": [
+        0.3288,
+        0.6272,
+        0.11
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.3287594,
+        0.6271787,
+        0.1099663
+      ]
+    },
+    "LM_005": {
+      "name": "Supraorbital foramen_L",
+      "bone": "model",
+      "faceIndex": 3975,
+      "faceVertexIndices": [
+        11006,
+        11074,
+        10871
+      ],
+      "barycentricWeights": [
+        0.2797480467209968,
+        0.377730397097134,
+        0.34252155618186925
+      ],
+      "vertexIndex": 11006,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:53:40.920Z",
+      "position": [
+        0.1648,
+        0.7216,
+        0.3149
+      ],
+      "clickPoint": [
+        0.1648,
+        0.7216,
+        0.3149
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.1647522,
+        0.721584,
+        0.3149057
+      ]
+    },
+    "LM_006": {
+      "name": "Supramental foramen_R",
+      "bone": "model",
+      "faceIndex": 1730,
+      "faceVertexIndices": [
+        5990,
+        6202,
+        6125
+      ],
+      "barycentricWeights": [
+        0.15076566211071885,
+        0.13261759736677847,
+        0.7166167405225027
+      ],
+      "vertexIndex": 6125,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:54:09.533Z",
+      "position": [
+        -0.1014,
+        0.7086,
+        0.3282
+      ],
+      "clickPoint": [
+        -0.1014,
+        0.7086,
+        0.3282
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.101351,
+        0.7085914,
+        0.3282424
+      ]
+    },
+    "LM_007": {
+      "name": "Infraorbital foramen_L",
+      "bone": "model",
+      "faceIndex": 5427,
+      "faceVertexIndices": [
+        11104,
+        11070,
+        11286
+      ],
+      "barycentricWeights": [
+        0.6096310055250052,
+        0.24213696309819704,
+        0.14823203137679775
+      ],
+      "vertexIndex": 11104,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:54:36.650Z",
+      "position": [
+        0.172,
+        0.4675,
+        0.3899
+      ],
+      "clickPoint": [
+        0.172,
+        0.4675,
+        0.3899
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.1720065,
+        0.4674844,
+        0.3899035
+      ]
+    },
+    "LM_008": {
+      "name": "Mental foramen_R",
+      "bone": "model",
+      "faceIndex": 17967,
+      "faceVertexIndices": [
+        6762,
+        6649,
+        6599
+      ],
+      "barycentricWeights": [
+        0.14364516487675444,
+        0.8223865038445421,
+        0.0339683312787034
+      ],
+      "vertexIndex": 6649,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:55:08.816Z",
+      "position": [
+        -0.07,
+        0.0995,
+        0.5674
+      ],
+      "clickPoint": [
+        -0.07,
+        0.0995,
+        0.5674
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.0700436,
+        0.0995158,
+        0.5674015
+      ]
+    },
+    "LM_009": {
+      "name": "Parietal_foramen_L",
+      "bone": "model",
+      "faceIndex": 16704,
+      "faceVertexIndices": [
+        8623,
+        8830,
+        8713
+      ],
+      "barycentricWeights": [
+        0.612107649149001,
+        0.051202633416279834,
+        0.33668971743471926
+      ],
+      "vertexIndex": 8623,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:57:03.310Z",
+      "position": [
+        0.0346,
+        0.6072,
+        -0.6335
+      ],
+      "clickPoint": [
+        0.0346,
+        0.6072,
+        -0.6335
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.0345832,
+        0.6072383,
+        -0.6334919
+      ]
+    },
+    "LM_010": {
+      "name": "parietal_foramen_R",
+      "bone": "model",
+      "faceIndex": 16878,
+      "faceVertexIndices": [
+        6990,
+        7011,
+        7219
+      ],
+      "barycentricWeights": [
+        0.6954641543323217,
+        0.1179336395120806,
+        0.1866022061555978
+      ],
+      "vertexIndex": 6990,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:57:19.651Z",
+      "position": [
+        -0.0509,
+        0.6021,
+        -0.6371
+      ],
+      "clickPoint": [
+        -0.0509,
+        0.6021,
+        -0.6371
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.050861,
+        0.6021495,
+        -0.6371308
+      ]
+    },
+    "LM_011": {
+      "name": "Anterior nasal spine",
+      "bone": "model",
+      "faceIndex": 12369,
+      "faceVertexIndices": [
+        8427,
+        8344,
+        8378
+      ],
+      "barycentricWeights": [
+        0.08873651366912705,
+        0.3985837660422943,
+        0.5126797202885787
+      ],
+      "vertexIndex": 8427,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T16:58:56.122Z",
+      "position": [
+        0.0197,
+        0.4192,
+        0.5102
+      ],
+      "clickPoint": [
+        0.0197,
+        0.4192,
+        0.5102
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        0.0197006,
+        0.4192083,
+        0.5102248
+      ]
+    }
+  },
+  "measurementDefinitions": [],
+  "measurements": [],
+  "indices": [
+    {
+      "code": "CI",
+      "name": "顱指數（最大顱寬／最大顱長 ×100）",
+      "value": null,
+      "category": ""
+    }
+  ],
+  "tool": {
+    "name": "頭骨 Landmark 標註器",
+    "build": "2026-09-25 00:46"
+  }
+}
