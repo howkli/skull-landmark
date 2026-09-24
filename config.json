@@ -1,0 +1,10 @@
+{
+  "firebase": {
+    "apiKey": "AIzaSyDCELERMO6xwuK97cKI11y9r_cdoy_MXCA",
+    "authDomain": "skull-landmark.firebaseapp.com",
+    "projectId": "skull-landmark",
+    "storageBucket": "skull-landmark.firebasestorage.app",
+    "messagingSenderId": "474445372703",
+    "appId": "1:474445372703:web:78f27360030e492404e42a"
+  }
+}
