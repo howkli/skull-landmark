@@ -86,7 +86,8 @@
     "LM_008",
     "LM_009",
     "LM_010",
-    "LM_011"
+    "LM_011",
+    "LM_012"
   ],
   "landmarkDefinitions": [
     {
@@ -183,6 +184,15 @@
       "code": "LM_011",
       "name": "Anterior nasal spine",
       "side": "M",
+      "bone": "",
+      "desc": "",
+      "required": false,
+      "teach": ""
+    },
+    {
+      "code": "LM_012",
+      "name": "Condylar canal_R",
+      "side": "R",
       "bone": "",
       "desc": "",
       "required": false,
@@ -573,6 +583,41 @@
         0.0197006,
         0.4192083,
         0.5102248
+      ]
+    },
+    "LM_012": {
+      "name": "Condylar canal_R",
+      "bone": "model",
+      "faceIndex": 24499,
+      "faceVertexIndices": [
+        5891,
+        5665,
+        5718
+      ],
+      "barycentricWeights": [
+        0.598725296725906,
+        0.10647702129907975,
+        0.29479768197501427
+      ],
+      "vertexIndex": 5891,
+      "source": "manual",
+      "status": "verified",
+      "timestamp": "2026-09-24T18:04:19.544Z",
+      "position": [
+        -0.1151,
+        0.1337,
+        -0.0943
+      ],
+      "clickPoint": [
+        -0.1151,
+        0.1337,
+        -0.0943
+      ],
+      "snapDistanceMm": 0,
+      "modelPosition": [
+        -0.1151021,
+        0.1337388,
+        -0.0942532
       ]
     }
   },
