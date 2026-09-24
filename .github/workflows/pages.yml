@@ -1,0 +1,38 @@
+name: 部署網站
+
+# 每次有東西推上 main（包括在 GitHub 網頁上傳或替換標註 JSON）就重新產生模型目錄並部署。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 產生模型目錄 library.json
+        run: python3 tools/make_library.py
+      - name: 整理要上網的檔案
+        run: |
+          mkdir _site
+          cp index.html 標註.html 學習.html library.json _site/
+          cp -r models _site/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

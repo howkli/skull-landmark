@@ -1,0 +1,1857 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>頭骨 Landmark 標註</title>
+<style>:root {
+  --bg: #e7eceb; --panel: #ffffff; --ink: #1d2624; --muted: #5f6d6a; --line: #d6dedc; --soft: #f3f6f5;
+  --accent: #0d9bb5; --accent-soft: #e2f4f7; --pin: #e65d32; --cal: #7b5cd6;
+  --warn: #b3541e; --warn-soft: #fcefe6; --bad: #b42318; --ok: #1a7a3e;
+  --radius: 8px; --shadow: 0 6px 22px rgba(20, 40, 38, .14);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.55 "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.hidden { display: none !important; }
+
+.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; }
+.topbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--ink); color: #fff; font-weight: 700; letter-spacing: .5px; flex: none; }
+.brandText { display: flex; flex-direction: column; min-width: 0; }
+.brandText strong { font-size: 15px; }
+.brandText small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+.tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: #aebbb8; background: var(--soft); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #33403d; }
+.btn.place { border-color: var(--accent); color: #07667a; background: var(--accent-soft); }
+.btn.add { border-style: dashed; }
+.btn.danger { color: var(--bad); }
+.linkBtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.linkBtn:hover { color: var(--bad); }
+.fileTarget { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.fileTarget span { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.fileTarget input { border: 0; padding: 5px 8px; width: 120px; outline: none; }
+.fileTarget b { font-weight: 400; color: var(--muted); padding-right: 8px; }
+.saveState { font-size: 12px; color: var(--ok); min-width: 120px; }
+.saveState.dirty { color: var(--warn); }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 390px; min-height: 0; }
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.stage.dragging::after { content: "放開就載入"; position: absolute; inset: 12px; border: 3px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; font-size: 20px; color: #07667a; background: rgba(226, 244, 247, .7); pointer-events: none; }
+#viewer { position: absolute; inset: 0; }
+#viewer canvas { display: block; width: 100%; height: 100%; }
+.labelLayer { position: absolute; inset: 0; pointer-events: none; }
+.pinLabel { font: 600 11px/1.2 ui-monospace, Consolas, monospace; color: #8a3a1c; background: rgba(255, 255, 255, .86); border: 1px solid rgba(230, 93, 50, .35); padding: 1px 4px; border-radius: 4px; white-space: nowrap; }
+.pinLabel.active { color: #07667a; border-color: rgba(13, 155, 181, .6); }
+.pinLabel.behind { opacity: .16; }
+select.btn { padding: 5px 8px; }
+.annotatorRow select { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; min-width: 0; }
+
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 4px; background: rgba(255, 255, 255, .92); padding: 4px; border-radius: 9px; box-shadow: var(--shadow); }
+.views button { border: 0; background: none; width: 34px; height: 30px; border-radius: 6px; cursor: pointer; }
+.views button:hover { background: var(--accent-soft); }
+.displayControls { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; background: rgba(255, 255, 255, .94); padding: 10px 12px; border-radius: 9px; box-shadow: var(--shadow); font-size: 12.5px; }
+.displayControls label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.displayControls input[type=range] { width: 110px; }
+.displayControls select { padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; }
+.check { display: flex; align-items: center; gap: 6px; }
+.frameBadge { position: absolute; left: 12px; top: 56px; display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, .92); padding: 5px 10px; border-radius: 8px; font-size: 12.5px; box-shadow: var(--shadow); }
+.warnText { color: var(--warn); font-weight: 600; }
+.stageHint { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 12px; align-items: center; background: rgba(29, 38, 36, .82); color: #fff; padding: 8px 12px; border-radius: 9px; font-size: 12.5px; }
+.stageHint b { white-space: nowrap; }
+.stageHint.placing { background: rgba(7, 102, 122, .9); }
+.dropzone, .loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.dropzone > div, .loading > div { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; max-width: 380px; background: rgba(255, 255, 255, .95); padding: 22px 26px; border-radius: 14px; box-shadow: var(--shadow); }
+.dropzone b { font-size: 17px; }
+.dropzone small, .loading small { color: var(--muted); }
+.loading { background: rgba(231, 236, 235, .55); pointer-events: auto; }
+.loading.error b { color: var(--bad); }
+
+.panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.tabs button { flex: 1; border: 0; background: none; padding: 10px 6px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.tabPane { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 16px; }
+#tab-landmarks { display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.annotatorRow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.annotatorRow input { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; }
+.progressHead { display: flex; justify-content: space-between; font-size: 13px; }
+.progressTrack { height: 6px; background: var(--soft); border-radius: 99px; overflow: hidden; flex: none; }
+.progressTrack i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.list { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 3px; padding-right: 2px; }
+.landmark { display: grid; grid-template-columns: 28px minmax(0, 1fr) 20px; align-items: center; gap: 8px; text-align: left; border: 1px solid transparent; background: var(--soft); border-radius: 7px; padding: 5px 8px; cursor: pointer; }
+.landmark:hover { border-color: var(--line); }
+.landmark.active { border-color: var(--accent); background: var(--accent-soft); }
+.landmark .num { color: var(--muted); font-size: 12px; text-align: right; }
+.landmark .label { display: flex; flex-direction: column; min-width: 0; }
+.landmark .label b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.landmark .label small { color: var(--muted); font-size: 11.5px; }
+.landmark .check { color: var(--muted); text-align: center; }
+.landmark.done .check { color: var(--ok); font-weight: 700; }
+.current { flex: none; border-top: 1px solid var(--line); padding-top: 10px; }
+.currentHead { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.badge { font-size: 11.5px; background: var(--soft); border-radius: 99px; padding: 1px 8px; color: var(--muted); white-space: nowrap; }
+.description { margin: 6px 0; font-size: 13px; color: #33403d; }
+.caution { margin: 6px 0; font-size: 12.5px; color: var(--warn); background: var(--warn-soft); padding: 5px 8px; border-radius: 6px; }
+.coords { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.coords div { background: var(--soft); border-radius: 6px; padding: 3px 6px; display: flex; gap: 6px; font-size: 12px; }
+.coords span { color: var(--muted); }
+.meta { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.currentActions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.calSection { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.calSection:first-child { border-top: 0; padding-top: 0; }
+.calSection h3 { font-size: 14px; margin: 0 0 4px; }
+.note { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+.summary { font-size: 13px; margin: 6px 0; }
+.muted { color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 6px 0; }
+th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 4px; }
+td { border-bottom: 1px solid var(--soft); padding: 5px 4px; vertical-align: top; }
+td small { display: block; color: var(--muted); font-size: 11px; }
+td.value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.measure tbody tr { cursor: pointer; }
+table.measure tbody tr:hover { background: var(--soft); }
+table.measure tr.highlight { background: var(--accent-soft); }
+.pairForm, .measureForm { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pairForm select, .measureForm select, .measureForm input, .pairForm input { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-width: 0; }
+.pairForm select { flex: 1 1 120px; }
+.pairForm input { width: 90px; }
+.measureForm input, .measureForm select { flex: 1 1 140px; }
+.fhRow { display: grid; grid-template-columns: 72px minmax(0, 1fr) 44px; gap: 6px; align-items: center; margin: 4px 0; font-size: 13px; }
+.fhRow select { border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; min-width: 0; }
+.fhRow i { font-style: normal; font-size: 12px; text-align: center; }
+.fhRow i.ok { color: var(--ok); }
+.fhRow i.miss { color: var(--warn); }
+#toggleAlign { margin: 6px 0; }
+
+.toast { position: fixed; left: 50%; bottom: 78px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 9px; box-shadow: var(--shadow); transition: .2s; pointer-events: none; max-width: 80vw; z-index: 30; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.warn { background: var(--warn); }
+.toast.bad { background: var(--bad); }
+.modal { position: fixed; inset: 0; background: rgba(20, 30, 28, .38); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.modalCard { background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); width: min(560px, 100%); padding: 16px 18px; }
+.modalHead { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.modalHead > div { display: flex; flex-direction: column; }
+.modalHead small { color: var(--muted); font-size: 12px; }
+.modalHead button { border: 0; background: none; font-size: 22px; cursor: pointer; color: var(--muted); }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.formGrid label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.formGrid label.wide { grid-column: 1 / -1; }
+.formGrid input, .formGrid select, .formGrid textarea { border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+.formGrid small { color: var(--muted); font-size: 11.5px; }
+.modalActions { display: flex; gap: 8px; margin-top: 14px; }
+.modalActions span { flex: 1; }
+
+.presetNotice { font-size: 12.5px; background: var(--accent-soft); color: #07667a; border-radius: 8px; padding: 6px 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* 頁面切換與模型庫（兩頁共用） */
+.pageNav { display: flex; gap: 2px; background: var(--soft); padding: 3px; border-radius: 9px; }
+.pageNav a { padding: 4px 14px; border-radius: 7px; color: var(--muted); text-decoration: none; font-size: 13.5px; }
+.pageNav a.active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(20, 40, 38, .15); }
+.pageNav a:hover:not(.active) { color: var(--ink); }
+.modalCard.wideCard { width: min(760px, 100%); max-height: 86vh; display: flex; flex-direction: column; }
+.libraryList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; overflow: auto; padding: 2px; }
+.modelCard { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.modelCard:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(13, 155, 181, .12); }
+.modelCard.active { border-color: var(--accent); background: var(--accent-soft); }
+.modelCard p { margin: 0; font-size: 13px; color: #33403d; }
+.modelCard small { color: var(--muted); font-size: 12px; }
+.modelTop { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.modelTop b { font-size: 14.5px; margin-right: 4px; }
+.warnBadge { background: var(--warn-soft); color: var(--warn); }
+.setChips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--accent); color: #07667a; background: var(--panel); border-radius: 99px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.chip:hover { background: var(--accent-soft); }
+.sensitiveBanner { position: absolute; bottom: 64px; left: 12px; background: rgba(179, 84, 30, .92); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; box-shadow: var(--shadow); z-index: 2; max-width: calc(100% - 24px); }
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; grid-template-rows: 62vh auto; overflow: auto; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); min-height: 60vh; }
+  .displayControls { top: auto; bottom: 110px; }
+  .tools { margin-left: 0; }
+}
+</style>
+<script>
+  // 模組載不進來（多半是沒網路，three.js 在 jsdelivr）時，至少告訴使用者原因
+  window.addEventListener('error', function (event) {
+    var box = document.getElementById('loading');
+    if (!box) return;
+    box.className = 'loading error';
+    document.getElementById('loadingText').textContent = '3D 程式載入失敗';
+    document.getElementById('loadingDetail').textContent = String(event.message || '') + '（第一次開需要網路下載 three.js）';
+  });
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="mark">SK</span><span class="brandText"><strong>頭骨 Landmark 標註</strong><small id="modelName">尚未載入模型</small></span></div>
+    <nav class="pageNav" aria-label="切換頁面"><a class="active" href="標註.html">標註</a><a href="學習.html">學習</a></nav>
+    <div class="tools">
+      <button class="btn primary" id="openModel">開啟模型</button><input id="modelFile" class="hidden" type="file" accept=".glb,.gltf,model/gltf-binary">
+      <label class="fileTarget">檔名 <span><input id="setName" maxlength="80" value="skull" aria-label="標註檔名"><b>.json</b></span></label>
+      <button class="btn" id="importJson">匯入 JSON</button><input id="importFile" class="hidden" type="file" accept="application/json,.json">
+      <button class="btn add" id="addLandmark">＋ 新增 Landmark</button>
+      <button class="btn place" id="place">停止標註</button>
+      <button class="btn" id="undo" disabled>復原</button>
+      <select class="btn" id="exportMenu" aria-label="匯出"><option value="">匯出…</option><option value="json">JSON（下載）</option><option value="csv">CSV（R／Excel）</option><option value="slicer">3D Slicer（.mrk.json）</option></select>
+      <button class="btn primary" id="save">存成 JSON</button>
+      <span class="saveState" id="saveState">尚未載入模型</span>
+    </div>
+  </header>
+  <main class="workspace">
+    <section class="stage" id="stage">
+      <div id="viewer" aria-label="3D 模型"></div>
+      <div class="views" aria-label="切換視角">
+        <button data-view="front" title="正面 norma frontalis">前</button><button data-view="back" title="後面 norma occipitalis">後</button><button data-view="left" title="左側面 norma lateralis">左</button><button data-view="right" title="右側面">右</button><button data-view="top" title="上面 norma verticalis">上</button><button data-view="bottom" title="底面 norma basilaris">下</button>
+      </div>
+      <div class="sensitiveBanner hidden" id="sensitiveBanner">大體老師資料：僅限教學使用，請勿截圖外流或上傳到雲端與社群</div>
+      <div class="frameBadge hidden" id="frameBadge"></div>
+      <div class="loading hidden" id="loading"><div><b id="loadingText">載入中…</b><small id="loadingDetail"></small><button class="btn hidden" id="loadingClose">關閉</button></div></div>
+      <div class="displayControls">
+        <label>外觀 <select id="displayMode"><option value="lit">照片貼圖</option><option value="unlit">貼圖原色（無光影）</option><option value="plain">素色骨頭</option></select></label>
+        <label>透明度 <input id="opacity" type="range" min="0.1" max="1" step="0.05" value="1"></label>
+        <label>標記大小 <input id="pinScale" type="range" min="0.3" max="3" step="0.1" value="1"></label>
+        <label class="check"><input id="labels" type="checkbox" checked> 顯示代碼</label>
+      </div>
+      <div class="stageHint" id="stageHint"><b id="modeLabel">標註模式</b><span id="hintText"></span></div>
+      <div class="dropzone" id="dropzone"><div><b>選一個模型開始</b><small>按左上「模型庫」或「開啟模型」，也可以把 .glb 直接拖進來。之前標過的同一個模型，會自動接回這台瀏覽器的草稿。</small></div></div>
+    </section>
+    <aside class="panel">
+      <nav class="tabs"><button data-tab="landmarks" class="active">Landmark</button><button data-tab="calib">校正與擺正</button><button data-tab="measure">量測</button></nav>
+      <section class="tabPane" id="tab-landmarks">
+        <label class="annotatorRow">清單 <select id="preset"></select></label>
+        <label class="annotatorRow">標註者 <input id="annotator" maxlength="40" placeholder="姓名或代號（寫進 JSON，算觀察者間誤差用）"></label>
+        <div class="presetNotice hidden" id="presetNotice"></div>
+        <div class="progressHead"><strong>進度</strong><span id="count">0 / 0</span></div>
+        <div class="progressTrack"><i id="progress"></i></div>
+        <div class="list" id="list"></div>
+        <section class="current" id="current"></section>
+      </section>
+      <section class="tabPane hidden" id="tab-calib"></section>
+      <section class="tabPane hidden" id="tab-measure"></section>
+    </aside>
+  </main>
+</div>
+<div class="modal hidden" id="libraryModal" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+  <div class="modalCard wideCard">
+    <div class="modalHead"><div><strong id="libraryTitle">選擇模型</strong><small id="librarySubtitle"></small></div><button type="button" id="libraryClose" aria-label="關閉">×</button></div>
+    <p class="note">點卡片開模型；點卡片裡的標註名稱，會連同那份標註一起開。</p>
+    <div class="libraryList" id="libraryList"></div>
+    <div class="modalActions"><button type="button" class="btn" id="libraryOpenFile">開啟電腦裡的檔案…</button><span></span><button type="button" class="btn" id="libraryRefresh">重新整理清單</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="modal hidden" id="landmarkModal" role="dialog" aria-modal="true" aria-labelledby="landmarkModalTitle">
+  <form class="modalCard" id="landmarkForm">
+    <div class="modalHead"><div><strong id="landmarkModalTitle">新增 Landmark</strong><small>名稱可以留白；代碼是連接座標的鑰匙，建立後不能改。</small></div><button type="button" id="cancelAddTop" aria-label="關閉">×</button></div>
+    <div class="formGrid">
+      <label><span>名稱</span><input id="newName" maxlength="120" placeholder="例如：鼻根點 nasion、正中神經"></label>
+      <label><span>代碼</span><input id="newCode" maxlength="80" required pattern="[A-Za-z0-9][A-Za-z0-9._\-]*"><small id="newCodeHint"></small></label>
+      <label><span>網格</span><select id="newBone"></select></label>
+      <label><span>側別</span><select id="newSide"><option value="L">左 L</option><option value="R">右 R</option><option value="M">中線 M</option></select></label>
+      <label class="wide"><span>位置定義</span><textarea id="newDesc" maxlength="1000" rows="2" placeholder="描述應該點在哪個可重複辨識的位置"></textarea></label>
+      <label class="wide"><span>教學說明（學習頁會顯示）</span><textarea id="newTeach" maxlength="4000" rows="4" placeholder="這個構造的解剖意義、臨床相關、考點……頭骨預設清單的點已有內建講解，這裡可以補充"></textarea></label>
+    </div>
+    <div class="modalActions"><button type="button" class="btn danger" id="deleteDefinition">從清單移除</button><span></span><button type="button" class="btn" id="cancelAdd">取消</button><button type="submit" class="btn primary" id="confirmAdd">建立並開始標註</button></div>
+  </form>
+</div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.15/build/index.module.min.js"}}</script>
+<script type="module">
+// ===== geometry.js =====
+// 頭骨標註器的純數學：重心座標、法蘭克福座標系、比例校正、量測、網格雜湊。
+// 刻意不碰 three.js，才能用 node 直接測（tests/geometry.test.mjs）。
+// 座標一律是 [x, y, z] 陣列；矩陣一律是列優先的 4×4 巢狀陣列。
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = a => Math.hypot(a[0], a[1], a[2]);
+const distance = (a, b) => norm(sub(a, b));
+
+function normalize(a) {
+  const n = norm(a);
+  if (!(n > 1e-12)) throw new Error('向量長度為零，無法定方向');
+  return mul(a, 1 / n);
+}
+
+// 與 8078 的 barycentricForHit 同一套：投影到三角形平面，負值截成 0 再重新正規化。
+// 退化判準改成相對值：8078 用 mm 座標、門檻 1e-12 沒問題，但照片重建的模型常是公尺，
+// 百萬面等級的小三角形 den 會小於 1e-12 而被誤判成退化。
+function barycentric(p, a, b, c) {
+  const v0 = sub(b, a), v1 = sub(c, a), v2 = sub(p, a);
+  const d00 = dot(v0, v0), d01 = dot(v0, v1), d11 = dot(v1, v1), d20 = dot(v2, v0), d21 = dot(v2, v1);
+  const den = d00 * d11 - d01 * d01;
+  if (!(d00 > 0) || !(d11 > 0) || Math.abs(den) <= 1e-12 * d00 * d11) return [1, 0, 0];
+  const v = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den, u = 1 - v - w;
+  const clipped = [Math.max(0, u), Math.max(0, v), Math.max(0, w)];
+  const sum = clipped[0] + clipped[1] + clipped[2];
+  return sum > 0 ? clipped.map(value => value / sum) : [1, 0, 0];
+}
+
+function fromBarycentric(a, b, c, weights) {
+  const [u, v, w] = weights;
+  return [a[0] * u + b[0] * v + c[0] * w, a[1] * u + b[1] * v + c[1] * w, a[2] * u + b[2] * v + c[2] * w];
+}
+
+// 法蘭克福水平面座標系。輸入是模型座標的左右 porion 與一側 orbitale。
+// 輸出軸（右手座標）：+X 往受試者左側、+Y 往上、+Z 往前；原點在兩側 porion 中點。
+// FH 平面就是 Y = 0；X = 0 是通過 porion 中點、垂直於耳點連線的近似正中矢狀面。
+function frankfurtFrame(poL, poR, orbitale) {
+  const origin = mul(add(poL, poR), 0.5);
+  const x = normalize(sub(poL, poR));
+  const toOrbitale = sub(orbitale, origin);
+  const forward = sub(toOrbitale, mul(x, dot(toOrbitale, x)));
+  if (norm(forward) < 1e-9 * Math.max(1, norm(toOrbitale))) throw new Error('orbitale 幾乎落在兩側 porion 的連線上，無法定出平面');
+  const z = normalize(forward);
+  const y = cross(z, x);
+  return { origin, x, y, z };
+}
+
+// 輸出 = scale · R · (p − origin)，R 的三列是 frame 的 x、y、z 軸。沒有 frame 時只做等比縮放。
+function makeTransform(scale, frame = null) {
+  if (!frame) return [[scale, 0, 0, 0], [0, scale, 0, 0], [0, 0, scale, 0], [0, 0, 0, 1]];
+  const row = axis => [...mul(axis, scale), -scale * dot(axis, frame.origin)];
+  return [row(frame.x), row(frame.y), row(frame.z), [0, 0, 0, 1]];
+}
+
+function applyTransform(m, p) {
+  return [0, 1, 2].map(i => m[i][0] * p[0] + m[i][1] * p[1] + m[i][2] * p[2] + m[i][3]);
+}
+
+// 游標卡尺校正：每組是「模型上兩點的距離」對「實物量到的 mm」。
+// 最小平方的等比係數 s = Σ m·d / Σ d²；residuals 與輸入同序（無效的一組回 null）。
+function fitScale(pairs) {
+  const valid = pairs.filter(pair => pair.modelDistance > 0 && pair.measuredMm > 0);
+  if (!valid.length) return null;
+  const num = valid.reduce((total, pair) => total + pair.measuredMm * pair.modelDistance, 0);
+  const den = valid.reduce((total, pair) => total + pair.modelDistance * pair.modelDistance, 0);
+  const factor = num / den;
+  const residuals = pairs.map(pair => (pair.modelDistance > 0 && pair.measuredMm > 0) ? factor * pair.modelDistance - pair.measuredMm : null);
+  const used = residuals.filter(value => value !== null);
+  const rms = Math.sqrt(used.reduce((total, value) => total + value * value, 0) / used.length);
+  return { factor, residuals, rms, n: valid.length };
+}
+
+function angleDeg(a, vertex, c) {
+  const u = sub(a, vertex), v = sub(c, vertex), nu = norm(u), nv = norm(v);
+  if (!(nu > 1e-12) || !(nv > 1e-12)) return NaN;
+  return Math.acos(Math.min(1, Math.max(-1, dot(u, v) / (nu * nv)))) * 180 / Math.PI;
+}
+
+// 網格指紋：cyrb53 的兩條 32 位元雜湊逐位元組處理，輸出 16 位 hex。
+// 只用來確認「JSON 是不是這個網格標的」（跟 8078 的 templateGeometryHash 同用途），不是密碼學用途。
+function hashChunks(chunks, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (const chunk of chunks) {
+    const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    for (let i = 0; i < bytes.length; i++) {
+      h1 = Math.imul(h1 ^ bytes[i], 2654435761);
+      h2 = Math.imul(h2 ^ bytes[i], 1597334677);
+    }
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+
+// 四捨五入到固定小數位，避免 JSON 裡出現 0.30000000000000004 這種雜訊。
+const round = (value, digits = 4) => Number(Number(value).toFixed(digits));
+
+// ===== protocol.js =====
+// 預設 landmark 清單、量測、指數。定義與出處整理在 頭骨3D標註.md 的「Landmark 定義」。
+// 定義主要依 Caple & Stephan 2016 標準化命名（Int J Legal Med 130:863，DOI 10.1007/s00414-015-1292-1）
+// 與 Hall et al. 骨學教材；Martin & Saller、Howells、Buikstra & Ubelaker 原書沒有逐字比對。
+// 順序刻意把法蘭克福平面的三點放最前面：先標它們就能先擺正，後面的點比較好找。
+// bone 留空＝任一網格都可以（目前的模型是一整塊；日後下頷骨分開再指定）。
+const L = (code, name, desc, extra = {}) => ({ code, name, side: 'L', bone: '', desc, required: true, ...extra });
+const R = (code, name, desc, extra = {}) => ({ code, name, side: 'R', bone: '', desc, required: true, ...extra });
+const M = (code, name, desc, extra = {}) => ({ code, name, side: 'M', bone: '', desc, required: true, ...extra });
+const pair = (code, name, desc, extra) => [L(`${code}_L`, `${name}（左）`, desc, extra), R(`${code}_R`, `${name}（右）`, desc, extra)];
+
+// 顱蓋鋸開線附近的點（依 Grant's／Cunningham's 的鋸線位置推論，要拿實物核對）
+const CAP = '在顱蓋上：點本身完好，但它跟顱底點的距離會吃進顱蓋裝回位置的誤差。拍攝前先把顱蓋固定。';
+const EDGE = '可能剛好落在顱蓋鋸開線上；鋸線經過時請在旁邊註明。';
+const JAW = '在下頷骨上：教學模型的下頷常用彈簧連接，跨上下頷的量測受咬合位置影響。';
+const EXTREME = '按極值定義（卡尺量最大／最小處），先擺正法蘭克福平面再找最外側的點比較可靠。';
+
+const SKULL_LANDMARKS = [
+  ...pair('po', '耳門上點 porion', '外耳道上緣的最高點。法蘭克福平面的定義點之一。'),
+  ...pair('or', '眶下點 orbitale', '眶下緣的最低點。法蘭克福平面慣例用左側。點在眶「緣」上，不要點進眶內的眶底。'),
+  M('n', '鼻根點 nasion', '額鼻縫與正中矢狀面的交點。'),
+  M('g', '眉間點 glabella', '額骨下緣正中、兩側眉弓之間最向前突出的點。', { caution: EDGE }),
+  M('ns', '鼻棘點 nasospinale', '梨狀孔下緣與正中矢狀面的交點。'),
+  M('pr', '上齒槽前點 prosthion', '兩上中門齒之間，上頷齒槽前緣的正中點。'),
+  M('b', '前囟點 bregma', '矢狀縫與冠狀縫的交點。', { caution: CAP }),
+  M('l', '人字點 lambda', '矢狀縫與人字縫的交點。', { caution: CAP }),
+  M('op', '顱後點 opisthocranion', '枕骨正中最後方的點，不含枕外隆凸區；最大顱長的後端點。', { caution: `${EXTREME}${EDGE}` }),
+  M('ba', '顱底點 basion', '枕骨大孔前緣的正中點。'),
+  M('o', '枕大孔後點 opisthion', '枕骨大孔後緣的正中點。'),
+  ...pair('zy', '顴點 zygion', '顴弓最外側的點（顴寬的端點）。', { caution: EXTREME }),
+  ...pair('eu', '顱側點 euryon', '腦顱最寬處的端點（最大顱寬的兩端），用卡尺量最寬處決定。', { caution: `${EXTREME}${EDGE}` }),
+  ...pair('ft', '額顳點 frontotemporale', '顳線在額骨上最向前內側的點（最小額寬的端點）。', { caution: EDGE }),
+  ...pair('ms', '乳突點 mastoidale', '乳突最下方的尖端。'),
+  ...pair('d', '淚點 dacryon', '眶內緣上，淚上頷縫與額骨相交的點。'),
+  ...pair('ec', '眶外緣點 ectoconchion', '眶外側緣與「橫向平分眼眶的線」的交點。'),
+  ...pair('al', '梨狀孔側點 alare', '梨狀孔最外側的點。'),
+  M('id', '下齒槽前點 infradentale', '兩下中門齒之間齒槽中隔的頂端。', { caution: JAW }),
+  M('pg', '頦前點 pogonion', '頦隆凸正中最向前的點（擺正後判斷）。', { caution: JAW }),
+  M('me', '頦下點 menton', '頦聯合正中最下方的點。', { caution: JAW }),
+  M('gn', '頦頂點 gnathion', 'pogonion 與 menton 的中點（Caple & Stephan 2016）。', { caution: `另有教材定義為「下頷體下緣正中點」，兩者不同；研究用請寫明採用哪一版。${JAW}` }),
+  ...pair('go', '下頷角點 gonion', '下頷角圓弧上，平分下頷枝後緣與下頷體下緣夾角的點。', { caution: JAW }),
+  // 以下三個不是顱骨測量點，是解剖教學的必考位置（學習頁有講解）
+  ...pair('pt', '翼點 pterion', '額骨、頂骨、顳骨鱗部與蝶骨大翼交會處（H 形縫）的中心。教學點。', { caution: '教學頭骨的顱蓋鋸線可能經過這一帶，請對照實物。' }),
+  ...pair('ast', '星點 asterion', '頂骨、顳骨與枕骨三骨交會的點（人字縫、頂乳突縫、枕乳突縫交會）。教學點。', { caution: EDGE }),
+  M('i', '枕外隆凸點 inion', '兩側上項線頂點之間、枕外隆凸基部的正中點。教學點。', { caution: EDGE }),
+];
+
+// martin：編號依 Martin & Knussmann 1988 查證；note 標出查證狀態
+const SKULL_MEASUREMENTS = [
+  { code: 'M1', martin: 'Martin 1', name: '最大顱長', type: 'distance', points: ['g', 'op'], preset: true },
+  { code: 'M8', martin: 'Martin 8', name: '最大顱寬', type: 'distance', points: ['eu_L', 'eu_R'], preset: true },
+  { code: 'M9', martin: 'Martin 9', name: '最小額寬', type: 'distance', points: ['ft_L', 'ft_R'], preset: true },
+  { code: 'M17', martin: 'Martin 17（部分查證）', name: '顱高（顱底點–前囟點）', type: 'distance', points: ['ba', 'b'], preset: true },
+  { code: 'M5', martin: 'Martin 5', name: '顱底長', type: 'distance', points: ['ba', 'n'], preset: true },
+  { code: 'M7', martin: 'Martin 7（部分查證）', name: '枕骨大孔長', type: 'distance', points: ['ba', 'o'], preset: true },
+  { code: 'M45', martin: 'Martin 45', name: '顴寬', type: 'distance', points: ['zy_L', 'zy_R'], preset: true },
+  { code: 'M48', martin: 'Martin 48', name: '上面高', type: 'distance', points: ['n', 'pr'], preset: true },
+  { code: 'M47', martin: 'Martin 47（編號未查證）', name: '全面高', type: 'distance', points: ['n', 'gn'], preset: true },
+  { code: 'M55', martin: 'Martin 55', name: '鼻高', type: 'distance', points: ['n', 'ns'], preset: true },
+  { code: 'M54', martin: 'Martin 54', name: '鼻寬', type: 'distance', points: ['al_L', 'al_R'], preset: true },
+  { code: 'M51a_L', martin: 'Martin 51a', name: '眶寬（左，淚點起算）', type: 'distance', points: ['d_L', 'ec_L'], preset: true },
+  { code: 'M66', martin: 'Martin 66', name: '下頷角寬', type: 'distance', points: ['go_L', 'go_R'], preset: true },
+];
+
+// classes 由小到大：value < below 就歸那一級，最後一級 below 為 Infinity
+const DEFAULT_INDICES = [
+  { code: 'CI', name: '顱指數（最大顱寬／最大顱長 ×100）', numerator: 'M8', denominator: 'M1',
+    classes: [{ below: 65, label: '超長顱' }, { below: 70, label: '特長顱' }, { below: 75, label: '長顱 dolichocranic' }, { below: 80, label: '中顱 mesocranic' },
+      { below: 85, label: '短顱 brachycranic' }, { below: 90, label: '特短顱' }, { below: Infinity, label: '超短顱' }] },
+];
+
+const PRESETS = {
+  skull: { label: '頭骨：顱骨測量 33 點＋教學點 5 點', landmarks: SKULL_LANDMARKS, measurements: SKULL_MEASUREMENTS },
+  blank: { label: '空白：點模型就新增自訂點（大體標本用）', landmarks: [], measurements: [] },
+};
+const DEFAULT_LANDMARKS = SKULL_LANDMARKS;
+const DEFAULT_MEASUREMENTS = SKULL_MEASUREMENTS;
+
+// ===== common.js =====
+// 兩頁共用的小工具：DOM 取用、跳脫、提示訊息、載入遮罩。
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+}
+function toast(text, type = 'ok') {
+  clearTimeout(toastTimer);
+  $('toast').textContent = text;
+  $('toast').className = `toast show ${type === 'warn' ? 'warn' : type === 'bad' ? 'bad' : ''}`;
+  toastTimer = setTimeout(() => { $('toast').className = 'toast'; }, 3400);
+}
+function setLoading(show, title = '', detail = '') {
+  $('loading').classList.toggle('hidden', !show);
+  $('loading').classList.remove('error');
+  $('loadingText').textContent = title;
+  $('loadingDetail').textContent = detail;
+  $('loadingClose').classList.add('hidden');
+}
+function failLoading(title, detail) {
+  setLoading(true, title, detail);
+  $('loading').classList.add('error');
+  $('loadingClose').classList.remove('hidden');
+}
+
+// ===== core.js =====
+// three.js 場景、載入 GLB、點選、landmark 圖釘、視角。
+// 世界座標＝「輸出座標」：modelRoot 的矩陣就是 模型座標 → 輸出座標 的轉換（比例校正＋法蘭克福擺正），
+// 所以圖釘、量測、JSON 的 position 全在同一個座標系裡。
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// 攝影測量網格動輒百萬面，沒有 BVH 時每次點選都要逐面測試；裝上後點選不到 1 毫秒
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+const THREE_ADDONS = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
+const BONE_COLOR = 0xe5cdb1, PIN_COLOR = 0xe65d32, PIN_ACTIVE = 0x0d9bb5, LINE_CAL = 0x7b5cd6, LINE_MEASURE = 0x0d9bb5;
+
+const viewer = $('viewer');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+viewer.appendChild(renderer.domElement);
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labelLayer';
+viewer.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe7eceb);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 100);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x71878b, 1.5));
+const keyLight = new THREE.DirectionalLight(0xfff6ea, 1.3);
+scene.add(keyLight, keyLight.target);
+// 跟著相機的頭燈：轉到哪面，哪面就亮，找骨性標記比較不會被陰影騙
+const headlight = new THREE.DirectionalLight(0xffffff, 1.1), headTarget = new THREE.Object3D();
+headTarget.position.set(0, 0, -1);
+camera.add(headlight, headTarget);
+headlight.target = headTarget;
+
+const modelRoot = new THREE.Group();
+modelRoot.matrixAutoUpdate = false;
+const pinGroup = new THREE.Group(), labelGroup = new THREE.Group(), lineGroup = new THREE.Group();
+scene.add(modelRoot, pinGroup, labelGroup, lineGroup);
+const pinGeometry = new THREE.SphereGeometry(1, 20, 14);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.screenSpacePanning = true;
+controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+const viewCenter = new THREE.Vector3();
+let viewDistance = 3, sceneRadius = 1;
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath(THREE_ADDONS + 'libs/draco/gltf/');
+loader.setDRACOLoader(draco);
+loader.setMeshoptDecoder(MeshoptDecoder);
+
+function resizeViewer() {
+  const width = Math.max(1, viewer.clientWidth), height = Math.max(1, viewer.clientHeight);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(width, height, false);
+  labelRenderer.setSize(width, height);
+}
+new ResizeObserver(resizeViewer).observe(viewer);
+// 轉到模型背面的點，代碼標籤淡掉（CSS2D 標籤不會被模型擋住，不淡掉會以為點在正面）
+const toCamera = new THREE.Vector3();
+function updateLabelVisibility() {
+  for (const label of labelGroup.children) {
+    const { normal, anchor } = label.userData;
+    if (!normal) continue;
+    toCamera.copy(camera.position).sub(anchor);
+    label.element.classList.toggle('behind', toCamera.dot(normal) < 0);
+  }
+}
+renderer.setAnimationLoop(() => {
+  controls.update();
+  updateLabelVisibility();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+
+// ---------- 載入 ----------
+function parseGlb(buffer) {
+  return new Promise((resolve, reject) => loader.parse(buffer, '', resolve, error => reject(error instanceof Error ? error : new Error(String(error?.message || error)))));
+}
+
+function extractPositions(geometry) {
+  const attribute = geometry.getAttribute('position'), out = new Float32Array(attribute.count * 3);
+  for (let i = 0; i < attribute.count; i++) {
+    out[i * 3] = attribute.getX(i); out[i * 3 + 1] = attribute.getY(i); out[i * 3 + 2] = attribute.getZ(i);
+  }
+  return out;
+}
+
+// 面積加權形心（模型座標）：擺正後用來判斷頭骨有沒有上下顛倒
+function areaCentroid(entries) {
+  let total = 0; const acc = [0, 0, 0];
+  for (const entry of entries) {
+    const count = entry.faceCount;
+    for (let f = 0; f < count; f++) {
+      const [a, b, c] = faceVertices(entry, f).map(index => vertexModel(entry, index));
+      const area = norm(cross(sub(b, a), sub(c, a))) / 2;
+      total += area;
+      for (let k = 0; k < 3; k++) acc[k] += area * (a[k] + b[k] + c[k]) / 3;
+    }
+  }
+  return total > 0 ? acc.map(value => value / total) : [0, 0, 0];
+}
+
+async function loadModelBuffer(buffer, fileName) {
+  const gltf = await parseGlb(buffer);
+  const root = gltf.scene || gltf.scenes?.[0];
+  if (!root) throw new Error('GLB 裡沒有場景');
+  root.updateMatrixWorld(true); // 此時還沒掛到 modelRoot，matrixWorld 就是「模型座標」
+  const entries = [], used = new Set();
+  root.traverse(object => {
+    if (!object.isMesh || !object.geometry?.getAttribute('position')) return;
+    const base = String(object.name || 'mesh').trim().replace(/[^A-Za-z0-9._-]/g, '_') || 'mesh';
+    let id = base, k = 0;
+    while (used.has(id)) id = `${base}_${++k}`; // 同一個 mesh 拆成多個 primitive 時名字會重複
+    used.add(id);
+    const geometry = object.geometry, positions = extractPositions(geometry);
+    if (!geometry.getAttribute('normal')) geometry.computeVertexNormals(); // OpenMVS 等輸出可能不帶法向量
+    // indirect：BVH 另存一份排序，不去重排原本的三角面索引。
+    // 預設模式會重排 index，網格指紋與 faceIndex 都會跟著變，舊草稿／JSON 就對不上了。
+    geometry.computeBoundsTree({ indirect: true });
+    const index = geometry.index ? geometry.index.array : null;
+    const faceCount = index ? index.length / 3 : positions.length / 9;
+    entries.push({ id, name: object.name || id, mesh: object, positions, index, faceCount, vertexCount: positions.length / 3,
+      localToModel: object.matrixWorld.clone(), original: object.material, materials: {} });
+  });
+  if (!entries.length) throw new Error('GLB 裡沒有網格');
+  const chunks = [];
+  for (const entry of entries) {
+    chunks.push(new Uint32Array([entry.vertexCount, entry.faceCount]), entry.positions);
+    if (entry.index) chunks.push(entry.index);
+  }
+  const boxModel = new THREE.Box3().setFromObject(root);
+  clearModel();
+  modelRoot.add(root);
+  // centroid 留到擺正時才算（百萬面等級一載入就算會卡）
+  return { fileName, root, meshes: entries, hash: hashChunks(chunks), centroid: null,
+    boxModel: { min: boxModel.min.toArray(), max: boxModel.max.toArray() } };
+}
+
+function disposeModel(model) {
+  if (!model) return;
+  for (const entry of model.meshes) {
+    for (const material of Object.values(entry.materials)) (Array.isArray(material) ? material : [material]).forEach(item => item?.dispose?.());
+  }
+}
+
+function disposeTree(object) {
+  object.traverse(child => {
+    if (!child.isMesh) return;
+    child.geometry?.disposeBoundsTree?.();
+    child.geometry?.dispose();
+    (Array.isArray(child.material) ? child.material : [child.material]).forEach(material => material?.dispose());
+  });
+}
+function clearModel() {
+  while (modelRoot.children.length) { const child = modelRoot.children.pop(); disposeTree(child); }
+}
+
+// ---------- 幾何查詢（全部以 mark 的三角面＋重心座標為準） ----------
+function faceVertices(entry, faceIndex) {
+  return entry.index ? [entry.index[faceIndex * 3], entry.index[faceIndex * 3 + 1], entry.index[faceIndex * 3 + 2]] : [faceIndex * 3, faceIndex * 3 + 1, faceIndex * 3 + 2];
+}
+function vertexLocal(entry, index) {
+  if (!(index >= 0 && index < entry.vertexCount)) throw new Error(`頂點編號 ${index} 超出網格範圍`);
+  return [entry.positions[index * 3], entry.positions[index * 3 + 1], entry.positions[index * 3 + 2]];
+}
+const tempVector = new THREE.Vector3();
+function toModel(entry, local) { return tempVector.set(local[0], local[1], local[2]).applyMatrix4(entry.localToModel).toArray(); }
+function vertexModel(entry, index) { return toModel(entry, vertexLocal(entry, index)); }
+
+// 回傳 mark 在模型座標的位置；網格對不上時回 null
+function markModelPosition(model, mark) {
+  const entry = model?.meshes.find(item => item.id === mark?.bone);
+  if (!entry || !Array.isArray(mark.faceVertexIndices) || !Array.isArray(mark.barycentricWeights)) return null;
+  try {
+    const [a, b, c] = mark.faceVertexIndices.map(index => vertexLocal(entry, Number(index)));
+    return toModel(entry, fromBarycentric(a, b, c, mark.barycentricWeights.map(Number)));
+  } catch { return null; }
+}
+
+// 標記點的表面法向量（輸出座標、單位向量），用來判斷標籤是不是轉到背面。
+// 三角面的繞行方向不一定朝外，所以用網格自帶的頂點法向量決定正負號。
+function markOutputNormal(model, mark, rows) {
+  const entry = model?.meshes.find(item => item.id === mark?.bone);
+  if (!entry) return null;
+  try {
+    const local = mark.faceVertexIndices.map(index => vertexLocal(entry, Number(index)));
+    let normal = cross(sub(local[1], local[0]), sub(local[2], local[0]));
+    const attribute = entry.mesh.geometry.getAttribute('normal');
+    if (attribute) {
+      const vertexNormal = mark.faceVertexIndices.reduce((sum, index) => add(sum, [attribute.getX(index), attribute.getY(index), attribute.getZ(index)]), [0, 0, 0]);
+      if (dot(normal, vertexNormal) < 0) normal = mul(normal, -1);
+    }
+    const origin = fromBarycentric(...local, mark.barycentricWeights.map(Number));
+    const scale = Math.max(norm(sub(local[1], local[0])), 1e-9);
+    const tip = add(origin, mul(normalize(normal), scale));
+    const out = [origin, tip].map(point => applyTransform(rows, toModel(entry, point)));
+    return normalize(sub(out[1], out[0]));
+  } catch { return null; }
+}
+
+// ---------- 點選 ----------
+const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+raycaster.firstHitOnly = true; // three-mesh-bvh：只要最近的那一個交點
+function raycastAt(model, clientX, clientY) {
+  if (!model) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const targets = model.meshes.filter(entry => entry.mesh.visible).map(entry => entry.mesh);
+  return raycaster.intersectObjects(targets, false)[0] || null;
+}
+
+function hitToMark(model, hit) {
+  const entry = model.meshes.find(item => item.mesh === hit.object);
+  const faceVertexIndices = [hit.face.a, hit.face.b, hit.face.c];
+  const local = hit.object.worldToLocal(hit.point.clone()).toArray();
+  const corners = faceVertexIndices.map(index => vertexLocal(entry, index));
+  const barycentricWeights = barycentric(local, ...corners);
+  const snapped = fromBarycentric(...corners, barycentricWeights);
+  let vertexIndex = faceVertexIndices[0], best = Infinity;
+  corners.forEach((corner, i) => { const d = distance(corner, snapped); if (d < best) { best = d; vertexIndex = faceVertexIndices[i]; } });
+  return { bone: entry.id, faceIndex: hit.faceIndex, faceVertexIndices, barycentricWeights, vertexIndex };
+}
+
+// ---------- 顯示 ----------
+function setModelTransform(rows) {
+  modelRoot.matrix.set(...rows.flat());
+  modelRoot.matrixWorldNeedsUpdate = true;
+  modelRoot.updateMatrixWorld(true);
+}
+
+function outputBox() { return new THREE.Box3().setFromObject(modelRoot); }
+
+// 取景用的「主體範圍」：抽樣頂點取 3%–97% 分位數。整個場景（含周圍環境）都保留顯示，
+// 但鏡頭對準大部分點所在的地方，遠處零星的環境碎片不會把主體擠成一小塊。
+function focusBox() {
+  const samples = [], point = new THREE.Vector3();
+  const total = modelRoot.children.length ? countMeshes() : 0;
+  modelRoot.updateMatrixWorld(true);
+  modelRoot.traverse(object => {
+    if (!object.isMesh) return;
+    const position = object.geometry.getAttribute('position');
+    const stride = Math.max(1, Math.floor(position.count / Math.max(1, 120000 / Math.max(1, total))));
+    for (let i = 0; i < position.count; i += stride) samples.push(point.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld).toArray());
+  });
+  if (samples.length < 8) return outputBox();
+  const box = new THREE.Box3();
+  const quantile = (axis, q) => { const values = samples.map(p => p[axis]).sort((a, b) => a - b); return values[Math.floor(q * (values.length - 1))]; };
+  box.min.set(quantile(0, 0.03), quantile(1, 0.03), quantile(2, 0.03));
+  box.max.set(quantile(0, 0.97), quantile(1, 0.97), quantile(2, 0.97));
+  return box;
+}
+function countMeshes() { let count = 0; modelRoot.traverse(object => { if (object.isMesh) count++; }); return count; }
+
+// keepDirection：只改比例時保留目前視線方向；擺正後改回正面
+function frameModel(keepDirection) {
+  const box = focusBox(), whole = outputBox();
+  if (box.isEmpty()) return;
+  const direction = camera.position.clone().sub(controls.target);
+  box.getCenter(viewCenter);
+  sceneRadius = Math.max(box.getSize(tempVector).length() / 2, 1e-6);
+  const wholeRadius = Math.max(whole.getSize(tempVector).length() / 2, sceneRadius);
+  // 直式畫面的水平視角比垂直窄，取較窄的那個算距離，整顆才放得進畫面
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov), horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  viewDistance = sceneRadius / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 0.92;
+  camera.near = sceneRadius / 300; camera.far = (viewDistance + wholeRadius) * 4; camera.updateProjectionMatrix(); // far 要涵蓋整個場景，遠處環境才不會被裁掉
+  controls.minDistance = sceneRadius * 0.12; controls.maxDistance = Math.max(sceneRadius * 12, wholeRadius * 3);
+  keyLight.position.copy(viewCenter).add(new THREE.Vector3(-1.2, 2.2, 2.6).multiplyScalar(sceneRadius));
+  keyLight.target.position.copy(viewCenter);
+  if (keepDirection && direction.lengthSq() > 0) {
+    controls.target.copy(viewCenter);
+    camera.position.copy(viewCenter).add(direction.normalize().multiplyScalar(viewDistance));
+    controls.update();
+  } else setView('front');
+}
+
+// 右手座標、擺正後：+X 受試者左、+Y 上、+Z 前。上／下視角微偏，讓臉朝畫面上方。
+const VIEW_DIRECTIONS = { front: [0, 0, 1], back: [0, 0, -1], left: [1, 0, 0], right: [-1, 0, 0], top: [0, 1, -0.002], bottom: [0, -1, 0.002] };
+function setView(name) {
+  const direction = new THREE.Vector3(...(VIEW_DIRECTIONS[name] || VIEW_DIRECTIONS.front)).normalize();
+  controls.target.copy(viewCenter);
+  camera.position.copy(viewCenter).add(direction.multiplyScalar(viewDistance));
+  controls.update();
+}
+
+function focusAt(point) { controls.target.copy(point); controls.update(); }
+
+// 鏡頭平滑飛到某一點：從該點表面法向量的方向、距離 distanceFactor×整體視距看過去
+let flight = null;
+function flyTo(point, normal, distanceFactor = 0.45, duration = 700) {
+  const target = new THREE.Vector3(...point);
+  const direction = normal ? new THREE.Vector3(...normal) : camera.position.clone().sub(controls.target);
+  if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+  const endPosition = target.clone().addScaledVector(direction.normalize(), viewDistance * distanceFactor);
+  const start = { target: controls.target.clone(), position: camera.position.clone(), time: performance.now() };
+  if (flight) cancelAnimationFrame(flight);
+  const step = now => {
+    const t = Math.min(1, (now - start.time) / duration), ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    controls.target.lerpVectors(start.target, target, ease);
+    camera.position.lerpVectors(start.position, endPosition, ease);
+    controls.update();
+    flight = t < 1 ? requestAnimationFrame(step) : null;
+  };
+  flight = requestAnimationFrame(step);
+}
+
+// 從指定相機（顯示座標）渲染一張指定大小的圖，回傳 PNG Blob。用來跟原始照片同角度比較。
+async function snapshotFromCamera({ position, target, up, fov, width, height }) {
+  const shot = new THREE.PerspectiveCamera(fov, width / height, camera.near, camera.far);
+  shot.position.set(...position); shot.up.set(...up); shot.lookAt(new THREE.Vector3(...target)); shot.updateMatrixWorld();
+  const previous = renderer.getSize(new THREE.Vector2()), ratio = renderer.getPixelRatio();
+  renderer.setPixelRatio(1); renderer.setSize(width, height, false);
+  renderer.render(scene, shot);
+  const blob = await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png'));
+  renderer.setPixelRatio(ratio); renderer.setSize(previous.x, previous.y, false);
+  return blob;
+}
+
+// 點到哪個圖釘（學習頁用）：回傳圖釘的代碼
+function pinAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObjects(pinGroup.children, false)[0]?.object.userData.code || '';
+}
+
+function setMaterialMode(model, mode, opacity) {
+  for (const entry of model.meshes) {
+    let material = entry.materials[mode];
+    if (!material) {
+      const originalMap = (Array.isArray(entry.original) ? entry.original[0] : entry.original)?.map || null;
+      const vertexColors = !!entry.mesh.geometry.getAttribute('color'); // 攝影測量也可能用頂點色而不是貼圖
+      if (mode === 'lit') material = entry.original;
+      else if (mode === 'unlit') { material = new THREE.MeshBasicMaterial({ map: originalMap, vertexColors, color: originalMap || vertexColors ? 0xffffff : BONE_COLOR }); material.toneMapped = false; }
+      else material = new THREE.MeshStandardMaterial({ color: BONE_COLOR, roughness: 0.68, metalness: 0 });
+      entry.materials[mode] = material;
+    }
+    for (const item of Array.isArray(material) ? material : [material]) {
+      // 攝影測量的 unlit 材質（貼圖已含光影）不要再套色調映射，否則照片色會偏灰
+      if (item.isMeshBasicMaterial) item.toneMapped = false;
+      item.side = THREE.DoubleSide;
+      item.transparent = opacity < 0.999; item.opacity = opacity; item.depthWrite = opacity >= 0.72;
+      item.needsUpdate = true;
+    }
+    entry.mesh.material = material;
+  }
+}
+
+function clearOverlay(group) {
+  while (group.children.length) {
+    const child = group.children[group.children.length - 1];
+    group.remove(child); // CSS2DObject 被移除時才會把自己的 DOM 元素拿掉
+    if (child.isLine || child.isMesh) { if (child.geometry !== pinGeometry) child.geometry?.dispose(); child.material?.dispose(); }
+  }
+}
+
+// pins：[{code, position:[x,y,z]（輸出座標）, normal, active}]
+function drawPins(pins, radius, showLabels) {
+  clearOverlay(pinGroup); clearOverlay(labelGroup);
+  for (const pin of pins) {
+    const color = pin.active ? PIN_ACTIVE : PIN_COLOR;
+    const sphere = new THREE.Mesh(pinGeometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: pin.active ? 0.5 : 0.28, roughness: 0.3 }));
+    sphere.scale.setScalar(radius * (pin.active ? 1.3 : 1));
+    sphere.position.set(...pin.position);
+    sphere.userData.code = pin.code;
+    pinGroup.add(sphere);
+    if (!showLabels) continue;
+    const element = document.createElement('div');
+    element.className = `pinLabel${pin.active ? ' active' : ''}`;
+    element.textContent = pin.code;
+    const label = new CSS2DObject(element);
+    label.position.set(pin.position[0], pin.position[1] + radius * 2.2, pin.position[2]);
+    label.userData = { anchor: new THREE.Vector3(...pin.position), normal: pin.normal ? new THREE.Vector3(...pin.normal) : null };
+    labelGroup.add(label);
+  }
+}
+
+// lines：[{from, to, kind: 'calibration' | 'measure'}]
+function drawLines(lines) {
+  clearOverlay(lineGroup);
+  for (const line of lines) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...line.from), new THREE.Vector3(...line.to)]);
+    const material = line.kind === 'calibration'
+      ? new THREE.LineDashedMaterial({ color: LINE_CAL, dashSize: sceneRadius * 0.03, gapSize: sceneRadius * 0.02, depthTest: false, transparent: true })
+      : new THREE.LineBasicMaterial({ color: LINE_MEASURE, depthTest: false, transparent: true });
+    const object = new THREE.Line(geometry, material);
+    if (line.kind === 'calibration') object.computeLineDistances();
+    object.renderOrder = 10;
+    lineGroup.add(object);
+  }
+}
+
+// ===== library.js =====
+// 模型庫：有本機伺服器（serve.py）時列出模型、讀寫標註檔；放在靜態網站（例如 GitHub Pages）時讀同資料夾的 library.json（唯讀）；
+// 直接雙擊 HTML（file://）時退回「開啟檔案」。
+const LAST_MODEL_KEY = 'skull-annotator:last-model';
+const library = { server: false, static: false, models: [], onPick: null, onOpenFile: null };
+const hasCatalog = () => library.server || library.static; // 有模型可挑（本機伺服器或靜態目錄）
+const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點（大體）' };
+
+async function loadCatalog() {
+  library.server = false;
+  library.static = false;
+  library.models = [];
+  if (!location.protocol.startsWith('http')) return library.models;
+  try {
+    const response = await fetch('/api/models', { cache: 'no-store' });
+    const models = response.ok ? await response.json() : null;
+    if (Array.isArray(models)) { library.models = models; library.server = true; return library.models; }
+  } catch { /* 沒有本機伺服器 */ }
+  try { // 靜態網站：library.json 列出模型檔與唯讀的標註檔（相對路徑）
+    const response = await fetch('library.json', { cache: 'no-store' });
+    const models = response.ok ? await response.json() : null;
+    if (Array.isArray(models)) { library.models = models; library.static = true; }
+  } catch { /* 也沒有靜態目錄 */ }
+  return library.models;
+}
+
+async function apiJson(response) {
+  let payload = null;
+  try { payload = await response.json(); } catch { /* 伺服器沒回 JSON */ }
+  if (!response.ok) throw new Error(payload?.error || `伺服器回應 ${response.status}`);
+  return payload;
+}
+async function fetchModelBuffer(model) {
+  const response = await fetch(model.file || `/api/models/${model.id}/file`, { cache: model.file ? 'default' : 'no-store' });
+  if (!response.ok) throw new Error(`讀不到模型檔 ${model.fileName}（${response.status}）`);
+  return response.arrayBuffer();
+}
+async function fetchLandmarkSet(model, name) {
+  const set = model.landmarkSets.find(item => item.name === name);
+  if (set?.file) return apiJson(await fetch(set.file, { cache: 'no-store' }));
+  return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, { cache: 'no-store' }));
+}
+async function saveLandmarkSet(model, name, doc, expectedSavedAt) {
+  return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Expected-Saved-At': expectedSavedAt || '' }, body: JSON.stringify(doc),
+  }));
+}
+function rememberModel(model, setName = '') {
+  try { localStorage.setItem(LAST_MODEL_KEY, JSON.stringify({ id: model.id, setName })); } catch { /* 記不住也沒關係 */ }
+}
+function lastModel() {
+  try {
+    const last = JSON.parse(localStorage.getItem(LAST_MODEL_KEY) || 'null');
+    const model = library.models.find(item => item.id === last?.id);
+    return model ? { model, setName: last.setName || '' } : null;
+  } catch { return null; }
+}
+
+function formatSavedAt(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+// currentId：目前開著的模型；requireSets：學習頁只列出有標註的模型
+function renderLibrary(currentId = '', { requireSets = false } = {}) {
+  const list = $('libraryList');
+  const models = requireSets ? library.models.filter(model => model.landmarkSets.length) : library.models;
+  $('librarySubtitle').textContent = library.server
+    ? `本機伺服器找到 ${library.models.length} 個模型；雲端 vault 的「模型／」與本機私人資料夾（~/skull3d/models）都會列出來。`
+    : library.static
+      ? `網頁版模型庫：${library.models.length} 個模型。標註只存在這台瀏覽器的草稿，要留存請按「存成 JSON」下載檔案。`
+      : '現在是直接開檔（file://），看不到模型庫：請按下方「開啟電腦裡的檔案」，或雙擊「啟動標註器.bat」改用模型庫。';
+  if (!models.length) {
+    list.innerHTML = `<p class="note">${library.server ? (requireSets ? '還沒有任何標好的教材：先到標註頁標好並「存成 JSON」。' : '模型庫是空的：把 .glb 放進 vault 的「模型／」或 ~/skull3d/models。')
+      : library.static ? (requireSets ? '網頁版還沒有標好的教材：可按下方「開啟電腦裡的檔案」開模型，再開下載的標註 JSON。' : '網頁版模型庫是空的。') : ''}</p>`;
+    return;
+  }
+  list.innerHTML = models.map(model => `
+    <div class="modelCard${model.id === currentId ? ' active' : ''}" data-model="${escapeHtml(model.id)}" role="button" tabindex="0">
+      <div class="modelTop"><b>${escapeHtml(model.title)}</b>
+        <span class="badge">${model.source === 'local' ? '本機私人（不同步）' : model.source === 'web' ? '網頁版' : '雲端 vault'}</span>
+        ${model.sensitive ? '<span class="badge warnBadge">大體老師資料</span>' : ''}</div>
+      ${model.description ? `<p>${escapeHtml(model.description)}</p>` : ''}
+      <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset} · ${model.landmarkSets.length} 份標註</small>
+      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}</button>`).join('')}</div>` : ''}
+    </div>`).join('');
+  list.querySelectorAll('.modelCard').forEach(card => {
+    const model = library.models.find(item => item.id === card.dataset.model);
+    card.onclick = event => {
+      const chip = event.target.closest('[data-set]');
+      closeLibrary();
+      library.onPick?.(model, chip ? chip.dataset.set : '');
+    };
+    card.onkeydown = event => { if (event.key === 'Enter') card.click(); };
+  });
+}
+
+function openLibrary(currentId = '', options = {}) {
+  renderLibrary(currentId, options);
+  $('libraryModal').classList.remove('hidden');
+}
+function closeLibrary() { $('libraryModal').classList.add('hidden'); }
+
+function bindLibraryModal() {
+  $('libraryClose').onclick = closeLibrary;
+  $('libraryModal').onclick = event => { if (event.target === $('libraryModal')) closeLibrary(); };
+  $('libraryOpenFile').onclick = () => { closeLibrary(); library.onOpenFile?.(); };
+  $('libraryRefresh').onclick = async () => { await loadCatalog(); renderLibrary(); toast(`模型庫已更新：${library.models.length} 個模型`); };
+}
+
+// ===== state.js =====
+// 標註狀態、瀏覽器草稿、復原、比例校正與擺正的推導、JSON／CSV 匯出入。
+// 真正的資料只有「三角面＋重心座標」；所有座標都由它即時算出，換比例或擺正不會讓點位跑掉。
+const DRAFT_PREFIX = 'skull-annotator:draft:';
+const PREFS_KEY = 'skull-annotator:prefs';
+
+const state = {
+  model: null,
+  libraryModel: null,   // 從模型庫開的：{id, title, …}；用檔案開的是 null
+  serverSavedAt: '',    // 模型庫裡這份標註目前的版本（exportedAt），存檔時用來偵測別人是否改過
+  setName: 'skull',
+  annotator: '',
+  preset: 'skull',
+  replaceCode: '', // 空白清單模式下按「重新放置」：下一次點選改放這一點，而不是新增
+  protocol: clone(DEFAULT_LANDMARKS),
+  marks: {},
+  active: DEFAULT_LANDMARKS[0].code,
+  placing: true,
+  history: [],
+  calibration: { pairs: [], assumeMeters: false },
+  alignment: { enabled: false, poL: 'po_L', poR: 'po_R', or: 'or_L' },
+  measurementDefs: clone(DEFAULT_MEASUREMENTS),
+  display: { mode: 'lit', opacity: 1, pinScale: 1, labels: true },
+  highlight: '',
+  dirty: false, draftFailed: false, fileHandle: null, lastSaved: '', rowsSignature: '',
+};
+
+function clone(value) { return JSON.parse(JSON.stringify(value)); }
+function definitionOf(code) { return state.protocol.find(item => item.code === code); }
+function labelOf(definition) { return definition ? (String(definition.name || '').trim() || definition.code) : ''; }
+function validCode(value, label = '代碼') {
+  const code = String(value || '').trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/.test(code)) throw new Error(`${label}只能用英文字母、數字、點、底線或連字號`);
+  return code;
+}
+
+// ---------- 推導：比例、擺正、座標 ----------
+function modelPositionOfCode(code) {
+  const mark = state.marks[code];
+  return mark ? markModelPosition(state.model, mark) : null;
+}
+
+function scaleInfo() {
+  const rows = state.calibration.pairs.map(pair => {
+    const a = modelPositionOfCode(pair.a), b = modelPositionOfCode(pair.b);
+    return { ...pair, modelDistance: a && b ? distance(a, b) : 0 };
+  });
+  const fit = fitScale(rows);
+  if (fit) return { factor: fit.factor, units: 'mm', source: 'caliper', fit, rows };
+  if (state.calibration.assumeMeters) return { factor: 1000, units: 'mm', source: 'assumed-meters', fit: null, rows };
+  return { factor: 1, units: 'model', source: 'none', fit: null, rows };
+}
+
+function alignmentInfo() {
+  const { enabled, poL, poR, or } = state.alignment;
+  const points = [poL, poR, or].map(modelPositionOfCode);
+  const missing = [poL, poR, or].filter((code, i) => !points[i]);
+  if (missing.length) return { enabled, ready: false, frame: null, missing, warnings: [] };
+  let frame;
+  try { frame = frankfurtFrame(...points); } catch (error) { return { enabled, ready: false, frame: null, missing: [], error: error.message, warnings: [] }; }
+  const aligned = makeTransform(1, frame), warnings = [];
+  state.model.centroid ??= areaCentroid(state.model.meshes);
+  if (applyTransform(aligned, state.model.centroid)[1] < 0) warnings.push('頭骨大部分落在法蘭克福平面下方：左右 porion 很可能標反了。');
+  const side = definitionOf(or)?.side, orX = applyTransform(aligned, points[2])[0];
+  if ((side === 'L' && orX < 0) || (side === 'R' && orX > 0)) warnings.push(`${or} 落在另一側：請確認左右是否標反。`);
+  const otherOr = { or_L: 'or_R', or_R: 'or_L' }[or] || '';
+  const otherPoint = otherOr ? modelPositionOfCode(otherOr) : null;
+  const otherHeightModel = otherPoint ? applyTransform(aligned, otherPoint)[1] : null;
+  // 正常頭骨兩側 orbitale 高度只差幾 mm；差到耳點間距的 8% 以上，多半是一側點進眶內（眶底）而不是眶緣
+  if (otherHeightModel != null && Math.abs(otherHeightModel) > 0.08 * distance(points[0], points[1]))
+    warnings.push(`兩側 orbitale 高度差太大：${otherOr} 離 FH 平面超過耳點間距的 8%。常見原因是點進眶內而不是點在眶緣上，請旋轉到斜下方檢查。`);
+  return { enabled, ready: true, frame, missing: [], warnings, otherOr, otherHeightModel };
+}
+
+function currentTransform() {
+  const scale = scaleInfo(), alignment = alignmentInfo();
+  const frame = alignment.enabled && alignment.ready ? alignment.frame : null;
+  return { scale, alignment, frame, rows: makeTransform(scale.factor, frame) };
+}
+
+function outputPositionOfCode(code, rows) {
+  const p = modelPositionOfCode(code);
+  return p ? applyTransform(rows, p) : null;
+}
+
+function describeFrame(transform) {
+  const units = transform.scale.units === 'mm' ? (transform.scale.source === 'assumed-meters' ? 'mm（假設模型單位是公尺，未用卡尺校正）' : 'mm（游標卡尺校正）') : '模型原始單位（未校正比例）';
+  return transform.frame
+    ? `法蘭克福座標：原點＝兩側 porion 中點，+X 受試者左、+Y 上、+Z 前，FH 平面＝Y=0；單位 ${units}`
+    : `模型原始方向；單位 ${units}`;
+}
+
+function computeMeasurements(transform) {
+  const results = state.measurementDefs.map(definition => {
+    const points = definition.points.map(code => outputPositionOfCode(code, transform.rows));
+    const missing = definition.points.filter((code, i) => !points[i]);
+    let value = null;
+    if (!missing.length) value = definition.type === 'angle' ? angleDeg(points[0], points[1], points[2]) : distance(points[0], points[1]);
+    return { ...definition, value, missing, unit: definition.type === 'angle' ? 'deg' : (transform.scale.units === 'mm' ? 'mm' : 'model-units') };
+  });
+  const byCode = Object.fromEntries(results.map(item => [item.code, item]));
+  const indices = DEFAULT_INDICES.map(index => {
+    const top = byCode[index.numerator]?.value, bottom = byCode[index.denominator]?.value;
+    const value = top != null && bottom ? 100 * top / bottom : null;
+    return { ...index, value, category: value == null ? '' : (index.classes.find(item => value < item.below)?.label || index.classes.at(-1).label) };
+  });
+  return { results, indices };
+}
+
+// ---------- 標註操作 ----------
+function remember(code) { state.history.push({ code, previous: state.marks[code] ? clone(state.marks[code]) : null }); }
+function placeActive(hit) {
+  if (state.preset === 'blank' && !state.replaceCode) return quickAdd(hit);
+  if (state.replaceCode) { state.active = state.replaceCode; state.replaceCode = ''; }
+  const definition = definitionOf(state.active);
+  if (!definition) return;
+  const mark = hitToMark(state.model, hit);
+  if (definition.bone && state.model.meshes.some(entry => entry.id === definition.bone) && definition.bone !== mark.bone) {
+    toast(`${labelOf(definition)} 要標在 ${definition.bone}，目前點到 ${mark.bone}`, 'warn');
+    return;
+  }
+  remember(state.active);
+  state.marks[state.active] = { name: definition.name || '', ...mark, source: 'manual', status: 'verified', timestamp: new Date().toISOString() };
+  saveDraft();
+  toast(`${labelOf(definition)} 已固定在點擊位置`);
+  nextUndone();
+  update();
+}
+// 空白清單（大體標本）：點一下就建立一個新的自訂點，接著跳出命名視窗
+function quickAdd(hit) {
+  const code = suggestedCode();
+  state.protocol.push({ code, name: '', side: 'M', bone: '', desc: '', required: false });
+  remember(code);
+  state.marks[code] = { name: '', ...hitToMark(state.model, hit), source: 'manual', status: 'verified', timestamp: new Date().toISOString() };
+  state.active = code;
+  saveDraft(); update();
+  openLandmarkModal(definitionOf(code));
+}
+
+function switchPreset(name) {
+  const preset = PRESETS[name];
+  if (!preset || name === state.preset) return;
+  if (Object.keys(state.marks).length && !confirm(`換成「${preset.label}」？目前 ${Object.keys(state.marks).length} 個標記會清掉（先存 JSON 就不會遺失）。`)) return false;
+  // 校正組與擺正都是用 landmark 代碼指的，換了清單那些代碼就不在了，一起重設
+  Object.assign(state, { preset: name, protocol: clone(preset.landmarks), measurementDefs: clone(preset.measurements), marks: {}, history: [], replaceCode: '', highlight: '', placing: true,
+    calibration: { pairs: [], assumeMeters: state.calibration.assumeMeters }, alignment: { enabled: false, poL: 'po_L', poR: 'po_R', or: 'or_L' } });
+  state.active = state.protocol[0]?.code || '';
+  saveDraft(); update();
+  toast(`已換成「${preset.label}」`);
+  return true;
+}
+
+// 草稿／JSON 會保留當時的清單；預設清單改版後，比較出「缺哪些點、哪些定義變了」
+function presetDiff() {
+  const preset = PRESETS[state.preset];
+  if (!preset || !preset.landmarks.length) return null;
+  const current = new Map(state.protocol.map(item => [item.code, item]));
+  const added = preset.landmarks.filter(item => !current.has(item.code));
+  const changed = preset.landmarks.filter(item => current.has(item.code) && ['name', 'desc', 'caution'].some(key => (current.get(item.code)[key] || '') !== (item[key] || '')));
+  const measurements = preset.measurements.filter(item => !state.measurementDefs.some(existing => existing.code === item.code && existing.name === item.name && existing.martin === item.martin));
+  return added.length || changed.length || measurements.length ? { added, changed, measurements } : null;
+}
+// 只更新文字定義、補上缺的點與量測；已標的點、自訂點、標註者寫的教學說明都保留
+function upgradePreset() {
+  const diff = presetDiff();
+  if (!diff) return;
+  const preset = PRESETS[state.preset], custom = state.protocol.filter(item => !preset.landmarks.some(base => base.code === item.code));
+  state.protocol = [...preset.landmarks.map(base => {
+    const existing = state.protocol.find(item => item.code === base.code);
+    return existing ? { ...existing, name: base.name, desc: base.desc, caution: base.caution, side: base.side } : clone(base);
+  }), ...custom];
+  for (const code of Object.keys(state.marks)) { const definition = definitionOf(code); if (definition) state.marks[code].name = definition.name; }
+  const customMeasurements = state.measurementDefs.filter(item => !item.preset);
+  state.measurementDefs = [...clone(preset.measurements), ...customMeasurements];
+  saveDraft(); update();
+  toast(`清單已更新：新增 ${diff.added.length} 點、更新 ${diff.changed.length} 個定義；已標的點都保留`);
+}
+
+function undo() {
+  const action = state.history.pop();
+  if (!action) return;
+  if (action.previous) state.marks[action.code] = action.previous; else delete state.marks[action.code];
+  state.active = action.code;
+  saveDraft(); update(); toast('已復原上一步');
+}
+function removeActive() {
+  if (!state.marks[state.active]) return;
+  remember(state.active); delete state.marks[state.active];
+  saveDraft(); update(); toast('已刪除目前標記', 'warn');
+}
+function nextUndone() {
+  const index = state.protocol.findIndex(item => item.code === state.active);
+  for (let step = 1; step <= state.protocol.length; step++) {
+    const candidate = state.protocol[(index + step) % state.protocol.length];
+    if (!state.marks[candidate.code]) { state.active = candidate.code; return; }
+  }
+  state.placing = false;
+  toast(`${state.protocol.length} 點都標完了；確認後按「存成 JSON」`);
+}
+
+// ---------- 草稿與偏好（只存在這台瀏覽器） ----------
+function draftKey() { return `${DRAFT_PREFIX}${state.model.hash}:${state.setName}`; }
+function saveDraft() {
+  if (!state.model) return;
+  try {
+    localStorage.setItem(draftKey(), JSON.stringify({ schema: 'skull-landmark-browser-draft', updatedAt: new Date().toISOString(), name: state.setName,
+      annotator: state.annotator, protocolPreset: state.preset, modelGeometryHash: state.model.hash, landmarkDefinitions: state.protocol, landmarks: state.marks,
+      calibration: state.calibration, alignment: state.alignment, measurementDefinitions: state.measurementDefs }));
+    state.draftFailed = false;
+  } catch { state.draftFailed = true; }
+  state.dirty = true;
+}
+function readDraft(hash, name) {
+  try { const draft = JSON.parse(localStorage.getItem(`${DRAFT_PREFIX}${hash}:${name}`) || 'null'); return draft?.modelGeometryHash === hash ? draft : null; } catch { return null; }
+}
+function latestDraft(hash) {
+  let best = null;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key || !key.startsWith(`${DRAFT_PREFIX}${hash}:`)) continue;
+      const draft = JSON.parse(localStorage.getItem(key) || 'null');
+      if (draft?.modelGeometryHash === hash && (!best || String(draft.updatedAt) > String(best.updatedAt))) best = draft;
+    }
+  } catch { /* 瀏覽器不給存取就當沒有草稿 */ }
+  return best;
+}
+function loadPrefs() {
+  try {
+    const prefs = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
+    Object.assign(state.display, prefs.display || {});
+    state.annotator = String(prefs.annotator || '');
+    if (PRESETS[prefs.preset]) state.preset = prefs.preset;
+  } catch { /* 用預設值 */ }
+}
+function savePrefs() {
+  try { localStorage.setItem(PREFS_KEY, JSON.stringify({ display: state.display, annotator: state.annotator, preset: state.preset })); } catch { /* 偏好存不了不影響標註 */ }
+}
+
+// 把 JSON 文件或草稿套進狀態；positions 一律忽略，由三角面＋重心座標重算
+function applyDocument(doc, { fromDraft = false } = {}) {
+  state.preset = PRESETS[doc.protocolPreset] ? doc.protocolPreset : 'skull';
+  const definitions = Array.isArray(doc.landmarkDefinitions) && (doc.landmarkDefinitions.length || state.preset === 'blank') ? doc.landmarkDefinitions : DEFAULT_LANDMARKS;
+  const known = new Map(definitions.map(item => [item.code, item]));
+  const marks = {};
+  let skipped = 0;
+  for (const [code, mark] of Object.entries(doc.landmarks || {})) {
+    const next = { ...mark };
+    delete next.position; delete next.clickPoint; delete next.modelPosition;
+    if (!known.has(code) || !markModelPosition(state.model, next)) { skipped++; continue; }
+    next.name = known.get(code).name || '';
+    marks[code] = next;
+  }
+  state.protocol = clone(definitions);
+  state.marks = marks;
+  state.history = [];
+  state.setName = String(doc.name || state.setName);
+  if (typeof doc.annotator === 'string' && doc.annotator) state.annotator = doc.annotator;
+  const calibration = fromDraft ? doc.calibration : doc.transform?.scale;
+  state.calibration = {
+    pairs: Array.isArray(calibration?.pairs) ? calibration.pairs.map(pair => ({ a: String(pair.a), b: String(pair.b), measuredMm: Number(pair.measuredMm) })).filter(pair => pair.measuredMm > 0) : [],
+    assumeMeters: !!calibration?.assumeMeters,
+  };
+  const alignment = fromDraft ? doc.alignment : doc.transform?.alignment;
+  state.alignment = { enabled: !!alignment?.enabled, poL: alignment?.poL || 'po_L', poR: alignment?.poR || 'po_R', or: alignment?.or || 'or_L' };
+  state.measurementDefs = Array.isArray(doc.measurementDefinitions) ? clone(doc.measurementDefinitions) : clone(PRESETS[state.preset].measurements);
+  state.replaceCode = '';
+  state.active = state.protocol.find(item => !state.marks[item.code])?.code || state.protocol.at(-1)?.code || '';
+  state.placing = true;
+  return skipped;
+}
+
+// ---------- 匯出 ----------
+function buildDocument() {
+  const transform = currentTransform(), { scale, alignment } = transform, model = state.model;
+  const landmarks = {};
+  for (const code of Object.keys(state.marks)) {
+    const modelPosition = modelPositionOfCode(code);
+    if (!modelPosition) continue;
+    const position = applyTransform(transform.rows, modelPosition).map(value => round(value, 4));
+    landmarks[code] = { ...state.marks[code], name: definitionOf(code)?.name || '', position, clickPoint: position, snapDistanceMm: 0, modelPosition: modelPosition.map(value => round(value, 7)) };
+  }
+  const { results, indices } = computeMeasurements(transform);
+  return {
+    schema: 'skull-mesh-landmarks', schemaVersion: 1,
+    compatibleWith: 'pelvis-template-landmarks（內網 8078）：landmarks 每點同樣存 faceVertexIndices＋barycentricWeights',
+    coordinateSystem: describeFrame(transform), units: scale.units === 'mm' ? 'mm' : 'model-units',
+    exportedAt: new Date().toISOString(), name: state.setName, annotator: state.annotator, protocolPreset: state.preset,
+    modelGeometryHash: model.hash,
+    model: { fileName: model.fileName, meshes: model.meshes.map(entry => ({ id: entry.id, vertexCount: entry.vertexCount, faceCount: entry.faceCount })), boundingBoxModel: model.boxModel },
+    transform: {
+      matrix: transform.rows.map(row => row.map(value => round(value, 9))), note: '輸出座標 = matrix × 模型座標（列優先 4×4）',
+      scale: { factor: round(scale.factor, 9), source: scale.source, assumeMeters: state.calibration.assumeMeters, rmsMm: scale.fit ? round(scale.fit.rms, 4) : null,
+        pairs: scale.rows.map((pair, i) => ({ a: pair.a, b: pair.b, measuredMm: pair.measuredMm, modelDistance: round(pair.modelDistance, 7), residualMm: scale.fit?.residuals[i] == null ? null : round(scale.fit.residuals[i], 4) })) },
+      alignment: { enabled: alignment.enabled && alignment.ready, method: 'frankfurt-horizontal', poL: state.alignment.poL, poR: state.alignment.poR, or: state.alignment.or, warnings: alignment.warnings || [] },
+    },
+    protocol: state.protocol.map(item => item.code),
+    landmarkDefinitions: state.protocol,
+    landmarks,
+    measurementDefinitions: state.measurementDefs,
+    measurements: results.map(item => ({ code: item.code, name: item.name, type: item.type, points: item.points, value: item.value == null ? null : round(item.value, 3), unit: item.unit })),
+    indices: indices.map(item => ({ code: item.code, name: item.name, value: item.value == null ? null : round(item.value, 2), category: item.category })),
+    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 00:28' },
+  };
+}
+
+function buildCsv() {
+  const transform = currentTransform(), escape = value => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const lines = [`# ${state.setName} · ${describeFrame(transform)}`, 'code,name,side,x,y,z'];
+  for (const definition of state.protocol) {
+    const p = outputPositionOfCode(definition.code, transform.rows);
+    if (p) lines.push([definition.code, escape(definition.name), definition.side, ...p.map(value => round(value, 4))].join(','));
+  }
+  return lines.join('\n') + '\n';
+}
+
+// 模型庫模式：存回模型旁的 <模型名>.landmarks/<檔名>.json（伺服器會先備份舊版；別人改過就拒絕）
+async function saveToLibrary() {
+  const doc = buildDocument(), name = state.setName, model = state.libraryModel;
+  const exists = model.landmarkSets?.some(set => set.name === name);
+  if (!confirm(exists ? `以目前 ${Object.keys(doc.landmarks).length} 點覆寫模型庫裡的 ${name}.json？（舊版會自動備份）` : `在模型庫建立 ${name}.json（${Object.keys(doc.landmarks).length} 點）？`)) return;
+  try {
+    const result = await saveLandmarkSet(model, name, doc, exists ? state.serverSavedAt : '');
+    state.serverSavedAt = result.savedAt || doc.exportedAt;
+    state.dirty = false; state.lastSaved = `模型庫 ${result.fileName}`;
+    rememberModel(model, name);
+    await loadCatalog();
+    state.libraryModel = library.models.find(item => item.id === model.id) || model;
+    update(); toast(`已存到模型庫：${result.fileName}（${result.count} 點）`);
+  } catch (error) { toast(error.message || '存檔失敗；原檔沒有變動', 'bad'); }
+}
+
+// 3D Slicer Markups（.mrk.json）：LPS、mm。本工具擺正後是 +X 左、+Y 上、+Z 前，所以 LPS = (x, −z, y)。
+// 只有「卡尺校正＋法蘭克福擺正」都做了才有解剖意義，否則拒絕匯出。
+function buildSlicerMarkups() {
+  const transform = currentTransform();
+  if (!transform.frame || transform.scale.units !== 'mm') throw new Error('先完成比例校正與法蘭克福擺正，Slicer 的 LPS 座標才有解剖意義');
+  const controlPoints = state.protocol.map(definition => ({ definition, p: outputPositionOfCode(definition.code, transform.rows) })).filter(item => item.p)
+    .map(({ definition, p }, i) => ({ id: String(i + 1), label: definition.code, description: labelOf(definition), associatedNodeID: '',
+      position: [p[0], -p[2], p[1]].map(value => round(value, 4)), orientation: [-1, 0, 0, 0, -1, 0, 0, 0, 1],
+      selected: true, locked: false, visibility: true, positionStatus: 'defined' }));
+  return { '@schema': 'https://raw.githubusercontent.com/slicer/slicer/main/Modules/Loadable/Markups/Resources/Schema/markups-schema-v1.0.3.json#',
+    markups: [{ type: 'Fiducial', coordinateSystem: 'LPS', coordinateUnits: 'mm', locked: false, fixedNumberOfControlPoints: false,
+      labelFormat: '%N-%d', lastUsedControlPointNumber: controlPoints.length, controlPoints, measurements: [] }] };
+}
+
+function downloadText(fileName, text, type) {
+  const anchor = document.createElement('a');
+  anchor.href = URL.createObjectURL(new Blob([text], { type }));
+  anchor.download = fileName;
+  anchor.click();
+  setTimeout(() => URL.revokeObjectURL(anchor.href), 0);
+}
+
+// 支援 File System Access 的瀏覽器（Chrome／Edge）第一次選位置，之後直接覆寫同一檔；其他瀏覽器改成下載
+async function saveJson() {
+  if (!state.model) return;
+  if (library.server && state.libraryModel) return saveToLibrary();
+  const text = JSON.stringify(buildDocument(), null, 2), fileName = `${state.setName}.json`;
+  if (window.showSaveFilePicker) {
+    try {
+      if (!state.fileHandle || state.fileHandle.name !== fileName) {
+        state.fileHandle = await window.showSaveFilePicker({ suggestedName: fileName, types: [{ description: 'Landmark JSON', accept: { 'application/json': ['.json'] } }] });
+        state.setName = state.fileHandle.name.replace(/\.json$/i, '');
+      }
+      const writable = await state.fileHandle.createWritable();
+      await writable.write(text); await writable.close();
+      state.dirty = false; state.lastSaved = state.fileHandle.name; saveDraft(); state.dirty = false;
+      update(); toast(`已存到 ${state.fileHandle.name}`);
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') return;
+      state.fileHandle = null; // 權限被拒等狀況：退回下載
+    }
+  }
+  downloadText(fileName, text, 'application/json');
+  state.dirty = false; state.lastSaved = `${fileName}（已下載）`; update(); toast(`已下載 ${fileName}`);
+}
+
+// ===== ui.js =====
+// 畫面：清單、目前點、校正分頁、量測分頁。所有 render 都只讀 state，不改資料。
+const SIDE_LABEL = { L: '左', R: '右', M: '中線' };
+
+function formatLength(value, transform) {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return transform.scale.units === 'mm' ? `${value.toFixed(1)} mm` : `${value.toPrecision(4)} 單位`;
+}
+
+// ---------- 場景 ----------
+function pinRadius() { return sceneRadius * 0.014 * state.display.pinScale; }
+
+function refreshScene(front = false) {
+  const transform = currentTransform();
+  setModelTransform(transform.rows);
+  const signature = transform.rows.flat().map(value => value.toPrecision(10)).join(',');
+  if (front || signature !== state.rowsSignature) { frameModel(!front); state.rowsSignature = signature; }
+  const pins = Object.keys(state.marks)
+    .map(code => ({ code, position: outputPositionOfCode(code, transform.rows), normal: markOutputNormal(state.model, state.marks[code], transform.rows), active: code === state.active }))
+    .filter(pin => pin.position);
+  drawPins(pins, pinRadius(), state.display.labels);
+  const lines = [];
+  for (const pair of state.calibration.pairs) {
+    const from = outputPositionOfCode(pair.a, transform.rows), to = outputPositionOfCode(pair.b, transform.rows);
+    if (from && to) lines.push({ from, to, kind: 'calibration' });
+  }
+  const highlighted = state.measurementDefs.find(item => item.code === state.highlight);
+  const points = highlighted ? highlighted.points.map(code => outputPositionOfCode(code, transform.rows)) : [];
+  if (highlighted && points.every(Boolean)) {
+    lines.push({ from: points[0], to: points[1], kind: 'measure' });
+    if (highlighted.type === 'angle') lines.push({ from: points[1], to: points[2], kind: 'measure' });
+  }
+  drawLines(lines);
+  return transform;
+}
+
+function update({ front = false } = {}) {
+  const transform = state.model ? refreshScene(front) : null;
+  renderAll(transform);
+}
+
+// ---------- 版面 ----------
+function renderAll(transform) {
+  renderTop(transform);
+  renderList();
+  renderCurrent(transform);
+  renderCalibration(transform);
+  renderMeasurements(transform);
+  renderMode();
+}
+
+function badgeHtml(transform) {
+  const orientation = transform.frame ? '<b>法蘭克福方向</b>' : '<b>原始方向</b>';
+  const { scale } = transform;
+  const scaleText = scale.source === 'caliper' ? `mm · 卡尺 ${scale.fit.n} 組${scale.fit.n > 1 ? ` · RMS ${scale.fit.rms.toFixed(2)} mm` : ''}`
+    : scale.source === 'assumed-meters' ? 'mm · 假設模型是公尺' : '<span class="warnText">未校正比例</span>';
+  return `${orientation}<span>${scaleText}</span>`;
+}
+
+function renderTop(transform) {
+  const model = state.model;
+  $('modelName').textContent = model ? `${state.libraryModel?.title || model.fileName} · ${model.meshes.reduce((total, entry) => total + entry.faceCount, 0).toLocaleString()} 面` : '尚未載入模型';
+  $('sensitiveBanner').classList.toggle('hidden', !state.libraryModel?.sensitive);
+  const saveState = $('saveState');
+  saveState.textContent = !model ? '尚未載入模型' : state.draftFailed ? '草稿存不進瀏覽器，請先存 JSON' : state.dirty ? '草稿已存在這台瀏覽器 · 尚未存成 JSON' : state.lastSaved ? `已存 ${state.lastSaved}` : '尚無變更';
+  saveState.classList.toggle('dirty', !!model && (state.dirty || state.draftFailed));
+  const done = state.protocol.filter(item => state.marks[item.code]).length;
+  $('count').textContent = `${done} / ${state.protocol.length}`;
+  $('progress').style.width = state.protocol.length ? `${done / state.protocol.length * 100}%` : '0%';
+  $('frameBadge').innerHTML = transform ? badgeHtml(transform) : '';
+  $('frameBadge').classList.toggle('hidden', !transform);
+  $('dropzone').classList.toggle('hidden', !!model);
+  $('undo').disabled = !state.history.length;
+  for (const id of ['save', 'exportMenu', 'importJson', 'addLandmark', 'place']) $(id).disabled = !model;
+  $('preset').value = state.preset;
+  if (document.activeElement !== $('setName')) $('setName').value = state.setName;
+  if (document.activeElement !== $('annotator')) $('annotator').value = state.annotator;
+}
+
+function renderList() {
+  const list = $('list'), diff = state.model ? presetDiff() : null;
+  $('presetNotice').classList.toggle('hidden', !diff);
+  if (diff) $('presetNotice').innerHTML = `清單有新版：可新增 ${diff.added.length} 點、更新 ${diff.changed.length} 個定義${diff.measurements.length ? `、${diff.measurements.length} 項量測` : ''}（已標的點不受影響）<button class="btn" id="upgradePreset">更新</button>`;
+  if (diff) $('upgradePreset').onclick = upgradePreset;
+  list.innerHTML = '';
+  state.protocol.forEach((definition, index) => {
+    const done = !!state.marks[definition.code], button = document.createElement('button');
+    button.className = `landmark${done ? ' done' : ''}${definition.code === state.active ? ' active' : ''}`;
+    button.innerHTML = `<span class="num">${index + 1}</span><span class="label"><b>${escapeHtml(labelOf(definition))}</b><small>${escapeHtml(definition.code)} · ${SIDE_LABEL[definition.side] || definition.side || ''}${definition.caution ? ' · ⚠' : ''}</small></span><span class="check">${done ? '✓' : '·'}</span>`;
+    button.onclick = () => { state.active = definition.code; state.placing = true; update(); };
+    list.appendChild(button);
+  });
+  list.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
+}
+
+function renderCurrent(transform) {
+  const definition = definitionOf(state.active), box = $('current');
+  if (!definition) {
+    box.innerHTML = `<p class="description">${state.preset === 'blank' ? '清單是空的：直接在模型上點一下就會新增一個點，再幫它命名。' : '清單是空的，請按「＋ 新增 Landmark」。'}</p>`;
+    return;
+  }
+  const mark = state.marks[state.active];
+  const position = mark && transform ? outputPositionOfCode(state.active, transform.rows) : null;
+  const digits = transform?.scale.units === 'mm' ? 2 : 5;
+  box.innerHTML = `<div class="currentHead"><b>${escapeHtml(labelOf(definition))}</b><span class="badge">${escapeHtml(definition.code)} · ${SIDE_LABEL[definition.side] || ''}</span></div>`
+    + `<p class="description">${escapeHtml(definition.desc || '（沒有定義說明）')}</p>`
+    + (definition.caution ? `<p class="caution">⚠ ${escapeHtml(definition.caution)}</p>` : '')
+    + (position ? `<div class="coords">${['X', 'Y', 'Z'].map((axis, i) => `<div><span>${axis}</span><code>${position[i].toFixed(digits)}</code></div>`).join('')}</div>`
+      + `<div class="meta">三角面 #${mark.faceIndex ?? '—'} 內固定 · 網格 ${escapeHtml(mark.bone)} · 參考頂點 #${mark.vertexIndex}</div>`
+      : `<div class="meta">${state.model ? '尚未標記；在模型上左鍵點一下就會放在這裡。' : '先載入模型。'}</div>`)
+    + `<div class="currentActions"><button class="btn" id="editDefinition">編輯資料</button><button class="btn place" id="replace" ${state.model ? '' : 'disabled'}>${mark ? '重新放置' : '放置此點'}</button><button class="btn danger" id="deleteCurrent" ${mark ? '' : 'disabled'}>刪除此點</button></div>`;
+  $('editDefinition').onclick = () => openLandmarkModal(definition);
+  $('replace').onclick = () => { state.placing = true; if (state.preset === 'blank') state.replaceCode = state.active; renderMode(); };
+  $('deleteCurrent').onclick = removeActive;
+}
+
+function landmarkOptions(selected, placedOnly = true, skip = 0) {
+  const items = state.protocol.filter(item => !placedOnly || state.marks[item.code] || item.code === selected);
+  if (!selected && skip && items.length > skip) selected = items[skip].code; // 兩個下拉預設選不同點
+  return items
+    .map(item => `<option value="${escapeHtml(item.code)}" ${item.code === selected ? 'selected' : ''}>${escapeHtml(item.code)} · ${escapeHtml(labelOf(item))}</option>`).join('');
+}
+
+function renderCalibration(transform) {
+  const pane = $('tab-calib');
+  if (!transform) { pane.innerHTML = '<p class="note">先載入模型。</p>'; return; }
+  const { scale, alignment } = transform;
+  const rows = scale.rows.map((pair, i) => {
+    const residual = scale.fit?.residuals[i];
+    return `<tr><td>${escapeHtml(pair.a)}–${escapeHtml(pair.b)}</td><td>${pair.measuredMm.toFixed(1)}</td><td>${pair.modelDistance ? (pair.modelDistance * scale.factor).toFixed(1) : '<span class="warnText">缺點</span>'}</td><td>${residual == null ? '—' : residual.toFixed(2)}</td><td><button class="linkBtn" data-remove-pair="${i}" title="移除">×</button></td></tr>`;
+  }).join('');
+  const summary = scale.source === 'caliper' ? `比例 ${scale.factor.toPrecision(6)} mm／模型單位（${scale.fit.n} 組${scale.fit.n > 1 ? `，RMS ${scale.fit.rms.toFixed(2)} mm` : '；加第二組才看得出誤差'}）`
+    : scale.source === 'assumed-meters' ? '比例 1000（假設模型單位是公尺，未經卡尺驗證）' : '尚未校正：距離只有相對意義，角度不受影響。';
+  const fhRow = (key, title) => {
+    const code = state.alignment[key], ok = !!state.marks[code];
+    return `<label class="fhRow"><span>${title}</span><select data-fh="${key}">${landmarkOptions(code, false)}</select><i class="${ok ? 'ok' : 'miss'}">${ok ? '✓' : '未標'}</i></label>`;
+  };
+  const otherHeight = alignment.otherHeightModel == null ? '' : `<p class="note">另一側 ${escapeHtml(alignment.otherOr)} 在 FH 平面${alignment.otherHeightModel >= 0 ? '上方' : '下方'} ${formatLength(Math.abs(alignment.otherHeightModel) * scale.factor, transform)}（左右不對稱或標點誤差的參考）。</p>`;
+  const size = outputBox().getSize(tempVector).toArray();
+  pane.innerHTML = `<section class="calSection"><h3>① 比例校正</h3>
+      <p class="note">用游標卡尺量實物上兩點的距離（例如兩側 zygion），再選模型上對應的兩個 landmark 填入。可以加好幾組，會用最小平方合成一個比例，並列出每組殘差。</p>
+      ${rows ? `<table class="pairs"><thead><tr><th>兩點</th><th>實測 mm</th><th>模型換算</th><th>殘差</th><th></th></tr></thead><tbody>${rows}</tbody></table>` : ''}
+      <div class="pairForm"><select id="pairA">${landmarkOptions('')}</select><select id="pairB">${landmarkOptions('', true, 1)}</select><input id="pairMm" type="number" step="0.1" min="0" placeholder="實測 mm"><button class="btn" id="addPair">加入</button></div>
+      <label class="check"><input type="checkbox" id="assumeMeters" ${state.calibration.assumeMeters ? 'checked' : ''} ${scale.source === 'caliper' ? 'disabled' : ''}> 沒有卡尺數據時，把模型單位當公尺（×1000）</label>
+      <p class="summary">${summary}</p></section>
+    <section class="calSection"><h3>② 法蘭克福平面擺正</h3>
+      <p class="note">FH 平面由左右 porion 與一側 orbitale（慣例用左側）定義。三點標好後按「擺正」，模型會轉成 +X 受試者左、+Y 上、+Z 前，原點在兩側 porion 中點。</p>
+      ${fhRow('poL', '左 porion')}${fhRow('poR', '右 porion')}${fhRow('or', 'orbitale')}
+      ${alignment.error ? `<p class="caution">⚠ ${escapeHtml(alignment.error)}</p>` : ''}
+      ${(alignment.warnings || []).map(text => `<p class="caution">⚠ ${escapeHtml(text)}</p>`).join('')}
+      <button class="btn ${state.alignment.enabled ? '' : 'primary'}" id="toggleAlign" ${alignment.ready || state.alignment.enabled ? '' : 'disabled'}>${state.alignment.enabled ? '回到原始方向' : '擺正'}</button>
+      ${alignment.missing.length ? `<p class="note">還缺：${alignment.missing.map(escapeHtml).join('、')}</p>` : ''}${otherHeight}</section>
+    <section class="calSection"><h3>外框尺寸</h3>
+      <p class="summary">${size.map(value => formatLength(value, transform)).join(' × ')}</p>
+      <p class="note">依目前方向的 X × Y × Z。單位是 mm 時，成人頭骨應該是一兩百 mm 的等級；差到幾千或零點幾，就是比例錯了。</p></section>`;
+  pane.querySelectorAll('[data-remove-pair]').forEach(button => button.onclick = () => {
+    state.calibration.pairs.splice(Number(button.dataset.removePair), 1); saveDraft(); update();
+  });
+  pane.querySelectorAll('[data-fh]').forEach(select => select.onchange = () => {
+    state.alignment[select.dataset.fh] = select.value; saveDraft(); update();
+  });
+  $('addPair').onclick = () => {
+    const a = $('pairA').value, b = $('pairB').value, mm = Number($('pairMm').value);
+    if (!a || !b || a === b) return toast('請選兩個不同、已標好的 landmark', 'warn');
+    if (!(mm > 0)) return toast('請輸入實測的 mm（大於 0）', 'warn');
+    state.calibration.pairs.push({ a, b, measuredMm: mm }); saveDraft(); update(); toast(`已加入 ${a}–${b} = ${mm} mm`);
+  };
+  $('assumeMeters').onchange = event => { state.calibration.assumeMeters = event.target.checked; saveDraft(); update(); };
+  $('toggleAlign').onclick = () => { state.alignment.enabled = !state.alignment.enabled; saveDraft(); update({ front: true }); toast(state.alignment.enabled ? '已依法蘭克福平面擺正' : '已回到模型原始方向'); };
+}
+
+function renderMeasurements(transform) {
+  const pane = $('tab-measure');
+  if (!transform) { pane.innerHTML = '<p class="note">先載入模型。</p>'; return; }
+  const { results, indices } = computeMeasurements(transform);
+  const rows = results.map(item => {
+    const value = item.value == null ? `<span class="muted">缺 ${item.missing.map(escapeHtml).join('、')}</span>` : item.type === 'angle' ? `${item.value.toFixed(1)}°` : formatLength(item.value, transform);
+    const points = item.type === 'angle' ? `∠${item.points.map(escapeHtml).join('-')}` : item.points.map(escapeHtml).join('–');
+    return `<tr class="${item.code === state.highlight ? 'highlight' : ''}" data-measure="${escapeHtml(item.code)}"><td><b>${escapeHtml(item.name)}</b>${item.martin ? `<small>${escapeHtml(item.martin)}</small>` : ''}</td><td>${points}</td><td class="value">${value}</td><td>${item.preset ? '' : `<button class="linkBtn" data-remove-measure="${escapeHtml(item.code)}" title="移除">×</button>`}</td></tr>`;
+  }).join('');
+  const indexRows = indices.map(item => `<p class="summary">${escapeHtml(item.name)}：${item.value == null ? '<span class="muted">需要兩個量測都有值</span>' : `<b>${item.value.toFixed(1)}</b> · ${escapeHtml(item.category)}`}</p>`).join('');
+  pane.innerHTML = `${transform.scale.units === 'mm' ? '' : '<p class="caution">⚠ 尚未校正比例：距離只是模型單位，先到「校正」分頁。角度不受影響。</p>'}
+    <table class="measure"><thead><tr><th>量測</th><th>點</th><th>值</th><th></th></tr></thead><tbody>${rows}</tbody></table>${indexRows}
+    <section class="calSection"><h3>自訂量測</h3>
+      <div class="measureForm"><select id="measureType"><option value="distance">兩點距離</option><option value="angle">三點角度（中間是頂點）</option></select>
+      <input id="measureName" maxlength="60" placeholder="名稱，例如：左眶高"><select id="measureA">${landmarkOptions('', false)}</select><select id="measureB">${landmarkOptions('', false, 1)}</select><select id="measureC" class="hidden">${landmarkOptions('', false, 2)}</select><button class="btn" id="addMeasure">加入</button></div>
+      <p class="note">點表格的一列，模型上會畫出那條量測線。</p></section>`;
+  pane.querySelectorAll('[data-measure]').forEach(row => row.onclick = event => {
+    if (event.target.closest('[data-remove-measure]')) return;
+    state.highlight = state.highlight === row.dataset.measure ? '' : row.dataset.measure; update();
+  });
+  pane.querySelectorAll('[data-remove-measure]').forEach(button => button.onclick = () => {
+    state.measurementDefs = state.measurementDefs.filter(item => item.code !== button.dataset.removeMeasure); saveDraft(); update();
+  });
+  $('measureType').onchange = event => $('measureC').classList.toggle('hidden', event.target.value !== 'angle');
+  $('addMeasure').onclick = () => {
+    const type = $('measureType').value, points = [$('measureA').value, $('measureB').value, ...(type === 'angle' ? [$('measureC').value] : [])];
+    if (new Set(points).size !== points.length) return toast('量測的點不能重複', 'warn');
+    let number = state.measurementDefs.length + 1, code;
+    do { code = `X${number++}`; } while (state.measurementDefs.some(item => item.code === code));
+    const name = $('measureName').value.trim() || (type === 'angle' ? `∠${points.join('-')}` : points.join('–'));
+    state.measurementDefs.push({ code, name, type, points }); saveDraft(); update(); toast(`已加入量測：${name}`);
+  };
+}
+
+function renderMode() {
+  $('place').textContent = state.placing ? '停止標註' : '開始標註';
+  $('place').className = `btn ${state.placing ? 'place' : ''}`;
+  $('stageHint').classList.toggle('placing', state.placing && !!state.model);
+  const quick = state.preset === 'blank' && !state.replaceCode;
+  const definition = definitionOf(state.replaceCode || state.active);
+  $('modeLabel').textContent = !state.placing ? `瀏覽 · ${Object.keys(state.marks).length} 個標記` : quick ? '新增模式：點一下＝新增一點' : `標註：${labelOf(definition) || '—'}`;
+  $('hintText').textContent = !state.placing ? '目前只瀏覽，點模型不會放點。按「開始標註」或在清單選一點。'
+    : quick ? '左鍵點模型就新增一個自訂點並命名；左鍵拖曳旋轉、右鍵拖曳平移、滾輪縮放；雙擊把旋轉中心移到該處。'
+      : '左鍵點骨面放點；左鍵拖曳旋轉、右鍵拖曳平移、滾輪縮放；雙擊把旋轉中心移到該處。';
+}
+
+// ===== main.js =====
+// 事件綁定、載入模型、新增／編輯 landmark 對話框、啟動。
+let modalMode = 'add';
+
+// ---------- 載入 ----------
+// 優先順序：指定的模型庫標註檔（若這台瀏覽器有更新的未存草稿就用草稿）→ 這個模型最近的草稿 → 空白清單
+async function openModel(buffer, fileName, { libraryModel = null, setDoc = null } = {}) {
+  setLoading(true, '正在讀取模型…', fileName);
+  try {
+    const previous = state.model, model = await loadModelBuffer(buffer, fileName);
+    disposeModel(previous);
+    Object.assign(state, { model, libraryModel, serverSavedAt: '', fileHandle: null, lastSaved: '', rowsSignature: '', highlight: '' });
+    let message = '模型已載入，在表面上左鍵點一下放第一個點', type = 'ok';
+    const draft = setDoc ? readDraft(model.hash, setDoc.name) : latestDraft(model.hash);
+    if (setDoc) {
+      applyDocument(setDoc);
+      Object.assign(state, { serverSavedAt: setDoc.exportedAt || '', dirty: false, lastSaved: `模型庫 ${setDoc.name}.json` });
+      message = `已載入模型庫標註「${setDoc.name}」（${Object.keys(state.marks).length} 點）`;
+      if (draft && String(draft.updatedAt) > String(setDoc.exportedAt || '')) {
+        applyDocument(draft, { fromDraft: true }); state.dirty = true; type = 'warn';
+        message = `這台瀏覽器有「${setDoc.name}」較新的未存草稿，已優先恢復（${Object.keys(state.marks).length} 點）`;
+      }
+    } else if (draft) {
+      applyDocument(draft, { fromDraft: true }); state.dirty = true; type = 'warn';
+      message = `已恢復這台瀏覽器的草稿「${state.setName}」（${Object.keys(state.marks).length} 點）`;
+    } else {
+      const preset = PRESETS[libraryModel?.preset] ? libraryModel.preset : PRESETS[state.preset] ? state.preset : 'skull';
+      Object.assign(state, { preset, protocol: clone(PRESETS[preset].landmarks), marks: {}, history: [], calibration: { pairs: [], assumeMeters: false },
+        alignment: { enabled: false, poL: 'po_L', poR: 'po_R', or: 'or_L' }, measurementDefs: clone(PRESETS[preset].measurements), placing: true, dirty: false, replaceCode: '' });
+      state.active = state.protocol[0]?.code || '';
+    }
+    setMaterialMode(model, state.display.mode, state.display.opacity);
+    setLoading(false);
+    update({ front: true });
+    toast(message, type);
+  } catch (error) {
+    failLoading('模型讀取失敗', error?.message || String(error));
+  }
+}
+
+async function openLibraryModel(model, setName = '') {
+  setLoading(true, `正在讀取「${model.title}」…`, `${model.fileName}（${model.sizeMB} MB）`);
+  try {
+    const [buffer, setDoc] = await Promise.all([fetchModelBuffer(model), setName ? fetchLandmarkSet(model, setName) : null]);
+    if (setDoc) setDoc.name = setName;
+    rememberModel(model, setName);
+    await openModel(buffer, model.fileName, { libraryModel: model, setDoc });
+  } catch (error) {
+    failLoading('模型庫讀取失敗', error?.message || String(error));
+  }
+}
+
+async function openFile(file) {
+  if (!file) return;
+  if (!/\.(glb|gltf)$/i.test(file.name)) return toast('目前只吃 .glb（或內嵌資源的 .gltf）', 'bad');
+  openModel(await file.arrayBuffer(), file.name);
+}
+
+async function openFromUrl(url) {
+  setLoading(true, '正在下載模型…', url);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`讀不到 ${url}（HTTP ${response.status}）`);
+    await openModel(await response.arrayBuffer(), decodeURIComponent(url.split(/[\\/]/).pop()));
+  } catch (error) {
+    failLoading('模型讀取失敗', `${error.message}。用 file:// 開時請改按「開啟模型」或把 .glb 拖進來。`);
+  }
+}
+
+async function importJsonFile(file) {
+  if (!file || !state.model) return;
+  try {
+    const doc = JSON.parse(await file.text());
+    if (!doc || typeof doc !== 'object' || !doc.landmarks || typeof doc.landmarks !== 'object') throw new Error('JSON 裡沒有 landmarks');
+    if (doc.modelGeometryHash && doc.modelGeometryHash !== state.model.hash) throw new Error('這份 JSON 是在另一個模型上標的（網格指紋不同），為避免點位跑掉已停止匯入');
+    if (!doc.modelGeometryHash) throw new Error('這份 JSON 沒有網格指紋（可能是 8078 骨盆檔），無法確認是同一個模型');
+    const skipped = applyDocument({ ...doc, name: doc.name || file.name.replace(/\.json$/i, '') });
+    state.fileHandle = null;
+    saveDraft(); update({ front: true });
+    toast(`已匯入 ${Object.keys(state.marks).length} 點${skipped ? `（${skipped} 點對不上網格，已略過）` : ''}；目前是瀏覽器草稿`, skipped ? 'warn' : 'ok');
+  } catch (error) {
+    toast(error.message || 'JSON 匯入失敗', 'bad');
+  }
+}
+
+// ---------- 新增／編輯 landmark ----------
+function suggestedCode() {
+  let number = state.protocol.length + 1, code;
+  do { code = `LM_${String(number++).padStart(3, '0')}`; } while (state.protocol.some(item => item.code === code));
+  return code;
+}
+function meshOptions(selected) {
+  const ids = state.model ? state.model.meshes.map(entry => entry.id) : [];
+  return ['<option value="">任一網格</option>', ...ids.map(id => `<option value="${escapeHtml(id)}" ${id === selected ? 'selected' : ''}>${escapeHtml(id)}</option>`)].join('');
+}
+function openLandmarkModal(definition = null) {
+  modalMode = definition ? 'update' : 'add';
+  $('landmarkForm').reset();
+  $('landmarkModalTitle').textContent = definition ? '編輯 Landmark 資料' : '新增 Landmark';
+  $('newName').value = definition?.name || '';
+  $('newCode').value = definition?.code || suggestedCode();
+  $('newCode').readOnly = !!definition;
+  $('newCodeHint').textContent = definition ? '代碼連著既有座標，不能改。' : '建立後固定不變；名稱之後還能改。';
+  $('newBone').innerHTML = meshOptions(definition?.bone || '');
+  $('newSide').value = definition?.side || 'M';
+  $('newDesc').value = definition?.desc || '';
+  $('newTeach').value = definition?.teach || '';
+  $('confirmAdd').textContent = definition ? '更新' : '建立並開始標註';
+  $('landmarkModal').classList.remove('hidden');
+  $('newName').focus();
+}
+function closeLandmarkModal() { $('landmarkModal').classList.add('hidden'); }
+
+$('landmarkForm').onsubmit = event => {
+  event.preventDefault();
+  try {
+    const code = validCode($('newCode').value), existing = definitionOf(code);
+    const definition = { ...(existing || {}), code, name: $('newName').value.trim(), bone: $('newBone').value, side: $('newSide').value, desc: $('newDesc').value.trim(),
+      teach: $('newTeach').value.trim(), required: existing?.required ?? true };
+    if (modalMode === 'add') {
+      if (existing) throw new Error(`代碼已存在：${code}`);
+      state.protocol.push(definition);
+    } else {
+      const index = state.protocol.findIndex(item => item.code === code);
+      if (index < 0) throw new Error('找不到要編輯的 Landmark');
+      const mark = state.marks[code];
+      if (mark && definition.bone && mark.bone !== definition.bone) delete state.marks[code];
+      else if (mark) mark.name = definition.name;
+      state.protocol[index] = definition;
+    }
+    closeLandmarkModal();
+    state.active = code; state.placing = true;
+    saveDraft(); update();
+    toast(modalMode === 'add' ? `${labelOf(definition)} 已加入，請直接點骨面` : `${labelOf(definition)} 已更新`);
+  } catch (error) { toast(error.message, 'bad'); }
+};
+$('cancelAdd').onclick = closeLandmarkModal;
+$('cancelAddTop').onclick = closeLandmarkModal;
+$('landmarkModal').onclick = event => { if (event.target === $('landmarkModal')) closeLandmarkModal(); };
+$('deleteDefinition').onclick = () => {
+  const code = $('newCode').value;
+  if (modalMode !== 'update' || !definitionOf(code)) return closeLandmarkModal();
+  if (!confirm(`從清單移除 ${code}？已標的座標也會一起刪掉。`)) return;
+  state.protocol = state.protocol.filter(item => item.code !== code);
+  delete state.marks[code];
+  state.active = state.protocol[0]?.code || '';
+  closeLandmarkModal(); saveDraft(); update(); toast(`已移除 ${code}`, 'warn');
+};
+
+// ---------- 工具列與顯示控制 ----------
+// 有模型庫就開模型庫視窗，沒有（file://）就直接開檔案
+$('openModel').onclick = () => hasCatalog() ? openLibrary(state.libraryModel?.id || '') : $('modelFile').click();
+library.onPick = (model, setName) => openLibraryModel(model, setName);
+library.onOpenFile = () => $('modelFile').click();
+bindLibraryModal();
+$('modelFile').onchange = event => { const file = event.target.files?.[0]; event.target.value = ''; openFile(file); };
+$('importJson').onclick = () => $('importFile').click();
+$('importFile').onchange = event => { const file = event.target.files?.[0]; event.target.value = ''; importJsonFile(file); };
+$('addLandmark').onclick = () => openLandmarkModal();
+$('place').onclick = () => { state.placing = !state.placing; renderMode(); };
+$('undo').onclick = undo;
+$('save').onclick = saveJson;
+$('exportMenu').onchange = event => {
+  const kind = event.target.value;
+  event.target.value = '';
+  if (!state.model || !kind) return;
+  try {
+    if (kind === 'json') { downloadText(`${state.setName}.json`, JSON.stringify(buildDocument(), null, 2), 'application/json'); toast(`已下載 ${state.setName}.json`); }
+    if (kind === 'csv') { downloadText(`${state.setName}.csv`, buildCsv(), 'text/csv'); toast(`已下載 ${state.setName}.csv`); }
+    if (kind === 'slicer') { downloadText(`${state.setName}.mrk.json`, JSON.stringify(buildSlicerMarkups(), null, 2), 'application/json'); toast(`已下載 ${state.setName}.mrk.json（LPS、mm）`); }
+  } catch (error) { toast(error.message, 'warn'); }
+};
+$('preset').innerHTML = Object.entries(PRESETS).map(([key, preset]) => `<option value="${key}">${escapeHtml(preset.label)}</option>`).join('');
+$('preset').onchange = event => {
+  if (!state.model) { state.preset = event.target.value; savePrefs(); return; }
+  if (switchPreset(event.target.value) === false) event.target.value = state.preset; // 使用者取消
+  savePrefs();
+};
+$('loadingClose').onclick = () => setLoading(false);
+$('setName').onchange = event => {
+  try { state.setName = validCode(event.target.value.replace(/\.json$/i, ''), '檔名'); state.fileHandle = null; saveDraft(); update(); }
+  catch (error) { toast(error.message, 'bad'); event.target.value = state.setName; }
+};
+$('annotator').onchange = event => { state.annotator = event.target.value.trim(); savePrefs(); saveDraft(); update(); };
+document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view));
+document.querySelectorAll('[data-tab]').forEach(button => button.onclick = () => {
+  document.querySelectorAll('[data-tab]').forEach(item => item.classList.toggle('active', item === button));
+  document.querySelectorAll('.tabPane').forEach(pane => pane.classList.toggle('hidden', pane.id !== `tab-${button.dataset.tab}`));
+});
+
+function applyDisplay() {
+  $('displayMode').value = state.display.mode;
+  $('opacity').value = state.display.opacity;
+  $('pinScale').value = state.display.pinScale;
+  $('labels').checked = state.display.labels;
+  if (state.model) setMaterialMode(state.model, state.display.mode, Number(state.display.opacity));
+}
+$('displayMode').onchange = event => { state.display.mode = event.target.value; savePrefs(); applyDisplay(); };
+$('opacity').oninput = event => { state.display.opacity = Number(event.target.value); savePrefs(); applyDisplay(); };
+$('pinScale').oninput = event => { state.display.pinScale = Number(event.target.value); savePrefs(); update(); };
+$('labels').onchange = event => { state.display.labels = event.target.checked; savePrefs(); update(); };
+
+// ---------- 點選（按下到放開移動 ≤5px 才算點，拖曳旋轉不會誤放） ----------
+let pointerStart = null;
+renderer.domElement.addEventListener('pointerdown', event => { if (event.button === 0) pointerStart = { x: event.clientX, y: event.clientY }; });
+renderer.domElement.addEventListener('pointerup', event => {
+  const moved = pointerStart ? Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) : Infinity;
+  pointerStart = null;
+  if (event.button !== 0 || moved > 5 || !state.placing || !state.model) return;
+  const hit = raycastAt(state.model, event.clientX, event.clientY);
+  if (hit) placeActive(hit);
+});
+renderer.domElement.addEventListener('pointercancel', () => { pointerStart = null; });
+renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
+renderer.domElement.addEventListener('dblclick', event => {
+  const hit = raycastAt(state.model, event.clientX, event.clientY);
+  if (hit) { focusAt(hit.point); toast('旋轉中心已移到雙擊處'); }
+});
+
+// ---------- 拖放 ----------
+addEventListener('dragover', event => { event.preventDefault(); $('stage').classList.add('dragging'); });
+addEventListener('dragleave', event => { if (!event.relatedTarget) $('stage').classList.remove('dragging'); });
+addEventListener('drop', event => {
+  event.preventDefault(); $('stage').classList.remove('dragging');
+  const files = [...(event.dataTransfer?.files || [])];
+  const model = files.find(file => /\.(glb|gltf)$/i.test(file.name)), json = files.find(file => /\.json$/i.test(file.name));
+  if (model) openFile(model); else if (json) importJsonFile(json); else if (files.length) toast('只接受 .glb 模型或 .json 標註檔', 'bad');
+});
+
+// ---------- 鍵盤 ----------
+addEventListener('keydown', event => {
+  const typing = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName);
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveJson(); return; }
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z' && !typing) { event.preventDefault(); undo(); return; }
+  if (event.key === 'Escape') {
+    if (!$('libraryModal').classList.contains('hidden')) closeLibrary();
+    else if (!$('landmarkModal').classList.contains('hidden')) closeLandmarkModal();
+    else { state.placing = false; renderMode(); }
+    return;
+  }
+  if (typing || !state.protocol.length) return;
+  if (event.key === 'Delete' || event.key === 'Backspace') { event.preventDefault(); removeActive(); return; }
+  const index = state.protocol.findIndex(item => item.code === state.active);
+  const step = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+  if (step) { event.preventDefault(); state.active = state.protocol[(index + step + state.protocol.length) % state.protocol.length].code; state.placing = true; update(); }
+});
+addEventListener('beforeunload', event => { if (state.draftFailed && state.dirty) { event.preventDefault(); event.returnValue = ''; } });
+
+// ---------- 啟動 ----------
+loadPrefs();
+applyDisplay();
+renderAll(null);
+const params = new URLSearchParams(location.search);
+if (params.has('debug')) window.__skull = { state, library, buildDocument, buildCsv, buildSlicerMarkups, switchPreset, currentTransform, outputPositionOfCode, setView, // 只給自動測試讀狀態用
+  snapshot: async (name, view) => (await fetch(`/api/snapshot?name=${encodeURIComponent(name)}`, { method: 'POST', body: await snapshotFromCamera(view) })).json() };
+(async () => {
+  await loadCatalog();
+  $('openModel').textContent = hasCatalog() ? '模型庫' : '開啟模型';
+  if (params.get('model')) return openFromUrl(params.get('model'));
+  if (!hasCatalog()) return; // file://：顯示拖放區，等使用者開檔
+  const last = lastModel();
+  if (last) openLibraryModel(last.model, last.model.landmarkSets.some(set => set.name === last.setName) ? last.setName : '');
+  else openLibrary();
+})();
+</script>
+</body>
+</html>

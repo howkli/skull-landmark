@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>頭骨解剖學習</title>
+<style>:root {
+  --bg: #e7eceb; --panel: #ffffff; --ink: #1d2624; --muted: #5f6d6a; --line: #d6dedc; --soft: #f3f6f5;
+  --accent: #0d9bb5; --accent-soft: #e2f4f7; --pin: #e65d32; --cal: #7b5cd6;
+  --warn: #b3541e; --warn-soft: #fcefe6; --bad: #b42318; --ok: #1a7a3e;
+  --radius: 8px; --shadow: 0 6px 22px rgba(20, 40, 38, .14);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.55 "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.hidden { display: none !important; }
+
+.app { display: grid; grid-template-rows: auto minmax(0, 1fr); height: 100vh; }
+.topbar { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding: 8px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.mark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: var(--ink); color: #fff; font-weight: 700; letter-spacing: .5px; flex: none; }
+.brandText { display: flex; flex-direction: column; min-width: 0; }
+.brandText strong { font-size: 15px; }
+.brandText small { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
+.tools { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-left: auto; }
+.btn { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 5px 11px; cursor: pointer; white-space: nowrap; }
+.btn:hover:not(:disabled) { border-color: #aebbb8; background: var(--soft); }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #33403d; }
+.btn.place { border-color: var(--accent); color: #07667a; background: var(--accent-soft); }
+.btn.add { border-style: dashed; }
+.btn.danger { color: var(--bad); }
+.linkBtn { border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+.linkBtn:hover { color: var(--bad); }
+.fileTarget { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.fileTarget span { display: flex; align-items: center; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.fileTarget input { border: 0; padding: 5px 8px; width: 120px; outline: none; }
+.fileTarget b { font-weight: 400; color: var(--muted); padding-right: 8px; }
+.saveState { font-size: 12px; color: var(--ok); min-width: 120px; }
+.saveState.dirty { color: var(--warn); }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 390px; min-height: 0; }
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.stage.dragging::after { content: "放開就載入"; position: absolute; inset: 12px; border: 3px dashed var(--accent); border-radius: 14px; display: grid; place-items: center; font-size: 20px; color: #07667a; background: rgba(226, 244, 247, .7); pointer-events: none; }
+#viewer { position: absolute; inset: 0; }
+#viewer canvas { display: block; width: 100%; height: 100%; }
+.labelLayer { position: absolute; inset: 0; pointer-events: none; }
+.pinLabel { font: 600 11px/1.2 ui-monospace, Consolas, monospace; color: #8a3a1c; background: rgba(255, 255, 255, .86); border: 1px solid rgba(230, 93, 50, .35); padding: 1px 4px; border-radius: 4px; white-space: nowrap; }
+.pinLabel.active { color: #07667a; border-color: rgba(13, 155, 181, .6); }
+.pinLabel.behind { opacity: .16; }
+select.btn { padding: 5px 8px; }
+.annotatorRow select { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: 4px 6px; min-width: 0; }
+
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 4px; background: rgba(255, 255, 255, .92); padding: 4px; border-radius: 9px; box-shadow: var(--shadow); }
+.views button { border: 0; background: none; width: 34px; height: 30px; border-radius: 6px; cursor: pointer; }
+.views button:hover { background: var(--accent-soft); }
+.displayControls { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 6px; background: rgba(255, 255, 255, .94); padding: 10px 12px; border-radius: 9px; box-shadow: var(--shadow); font-size: 12.5px; }
+.displayControls label { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.displayControls input[type=range] { width: 110px; }
+.displayControls select { padding: 2px 4px; border: 1px solid var(--line); border-radius: 6px; }
+.check { display: flex; align-items: center; gap: 6px; }
+.frameBadge { position: absolute; left: 12px; top: 56px; display: flex; gap: 10px; align-items: center; background: rgba(255, 255, 255, .92); padding: 5px 10px; border-radius: 8px; font-size: 12.5px; box-shadow: var(--shadow); }
+.warnText { color: var(--warn); font-weight: 600; }
+.stageHint { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; gap: 12px; align-items: center; background: rgba(29, 38, 36, .82); color: #fff; padding: 8px 12px; border-radius: 9px; font-size: 12.5px; }
+.stageHint b { white-space: nowrap; }
+.stageHint.placing { background: rgba(7, 102, 122, .9); }
+.dropzone, .loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.dropzone > div, .loading > div { display: flex; flex-direction: column; gap: 6px; align-items: center; text-align: center; max-width: 380px; background: rgba(255, 255, 255, .95); padding: 22px 26px; border-radius: 14px; box-shadow: var(--shadow); }
+.dropzone b { font-size: 17px; }
+.dropzone small, .loading small { color: var(--muted); }
+.loading { background: rgba(231, 236, 235, .55); pointer-events: auto; }
+.loading.error b { color: var(--bad); }
+
+.panel { display: flex; flex-direction: column; min-height: 0; background: var(--panel); border-left: 1px solid var(--line); }
+.tabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.tabs button { flex: 1; border: 0; background: none; padding: 10px 6px; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; }
+.tabs button.active { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.tabPane { flex: 1; min-height: 0; overflow: auto; padding: 12px 14px 16px; }
+#tab-landmarks { display: flex; flex-direction: column; gap: 8px; overflow: hidden; }
+.annotatorRow { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+.annotatorRow input { flex: 1; border: 1px solid var(--line); border-radius: 7px; padding: 4px 8px; }
+.progressHead { display: flex; justify-content: space-between; font-size: 13px; }
+.progressTrack { height: 6px; background: var(--soft); border-radius: 99px; overflow: hidden; flex: none; }
+.progressTrack i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+.list { flex: 1; min-height: 120px; overflow: auto; display: flex; flex-direction: column; gap: 3px; padding-right: 2px; }
+.landmark { display: grid; grid-template-columns: 28px minmax(0, 1fr) 20px; align-items: center; gap: 8px; text-align: left; border: 1px solid transparent; background: var(--soft); border-radius: 7px; padding: 5px 8px; cursor: pointer; }
+.landmark:hover { border-color: var(--line); }
+.landmark.active { border-color: var(--accent); background: var(--accent-soft); }
+.landmark .num { color: var(--muted); font-size: 12px; text-align: right; }
+.landmark .label { display: flex; flex-direction: column; min-width: 0; }
+.landmark .label b { font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.landmark .label small { color: var(--muted); font-size: 11.5px; }
+.landmark .check { color: var(--muted); text-align: center; }
+.landmark.done .check { color: var(--ok); font-weight: 700; }
+.current { flex: none; border-top: 1px solid var(--line); padding-top: 10px; }
+.currentHead { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.badge { font-size: 11.5px; background: var(--soft); border-radius: 99px; padding: 1px 8px; color: var(--muted); white-space: nowrap; }
+.description { margin: 6px 0; font-size: 13px; color: #33403d; }
+.caution { margin: 6px 0; font-size: 12.5px; color: var(--warn); background: var(--warn-soft); padding: 5px 8px; border-radius: 6px; }
+.coords { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 6px 0; }
+.coords div { background: var(--soft); border-radius: 6px; padding: 3px 6px; display: flex; gap: 6px; font-size: 12px; }
+.coords span { color: var(--muted); }
+.meta { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.currentActions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.calSection { border-top: 1px solid var(--line); padding: 10px 0 4px; }
+.calSection:first-child { border-top: 0; padding-top: 0; }
+.calSection h3 { font-size: 14px; margin: 0 0 4px; }
+.note { font-size: 12.5px; color: var(--muted); margin: 4px 0 8px; }
+.summary { font-size: 13px; margin: 6px 0; }
+.muted { color: var(--muted); }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 6px 0; }
+th { text-align: left; color: var(--muted); font-weight: 500; border-bottom: 1px solid var(--line); padding: 4px; }
+td { border-bottom: 1px solid var(--soft); padding: 5px 4px; vertical-align: top; }
+td small { display: block; color: var(--muted); font-size: 11px; }
+td.value { white-space: nowrap; font-variant-numeric: tabular-nums; }
+table.measure tbody tr { cursor: pointer; }
+table.measure tbody tr:hover { background: var(--soft); }
+table.measure tr.highlight { background: var(--accent-soft); }
+.pairForm, .measureForm { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.pairForm select, .measureForm select, .measureForm input, .pairForm input { border: 1px solid var(--line); border-radius: 6px; padding: 4px 6px; min-width: 0; }
+.pairForm select { flex: 1 1 120px; }
+.pairForm input { width: 90px; }
+.measureForm input, .measureForm select { flex: 1 1 140px; }
+.fhRow { display: grid; grid-template-columns: 72px minmax(0, 1fr) 44px; gap: 6px; align-items: center; margin: 4px 0; font-size: 13px; }
+.fhRow select { border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; min-width: 0; }
+.fhRow i { font-style: normal; font-size: 12px; text-align: center; }
+.fhRow i.ok { color: var(--ok); }
+.fhRow i.miss { color: var(--warn); }
+#toggleAlign { margin: 6px 0; }
+
+.toast { position: fixed; left: 50%; bottom: 78px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: #fff; padding: 8px 16px; border-radius: 9px; box-shadow: var(--shadow); transition: .2s; pointer-events: none; max-width: 80vw; z-index: 30; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.warn { background: var(--warn); }
+.toast.bad { background: var(--bad); }
+.modal { position: fixed; inset: 0; background: rgba(20, 30, 28, .38); display: grid; place-items: center; z-index: 20; padding: 16px; }
+.modalCard { background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); width: min(560px, 100%); padding: 16px 18px; }
+.modalHead { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.modalHead > div { display: flex; flex-direction: column; }
+.modalHead small { color: var(--muted); font-size: 12px; }
+.modalHead button { border: 0; background: none; font-size: 22px; cursor: pointer; color: var(--muted); }
+.formGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.formGrid label { display: flex; flex-direction: column; gap: 3px; font-size: 13px; }
+.formGrid label.wide { grid-column: 1 / -1; }
+.formGrid input, .formGrid select, .formGrid textarea { border: 1px solid var(--line); border-radius: 7px; padding: 5px 8px; }
+.formGrid small { color: var(--muted); font-size: 11.5px; }
+.modalActions { display: flex; gap: 8px; margin-top: 14px; }
+.modalActions span { flex: 1; }
+
+.presetNotice { font-size: 12.5px; background: var(--accent-soft); color: #07667a; border-radius: 8px; padding: 6px 8px; display: flex; gap: 8px; align-items: center; justify-content: space-between; }
+
+/* 頁面切換與模型庫（兩頁共用） */
+.pageNav { display: flex; gap: 2px; background: var(--soft); padding: 3px; border-radius: 9px; }
+.pageNav a { padding: 4px 14px; border-radius: 7px; color: var(--muted); text-decoration: none; font-size: 13.5px; }
+.pageNav a.active { background: var(--panel); color: var(--ink); font-weight: 600; box-shadow: 0 1px 3px rgba(20, 40, 38, .15); }
+.pageNav a:hover:not(.active) { color: var(--ink); }
+.modalCard.wideCard { width: min(760px, 100%); max-height: 86vh; display: flex; flex-direction: column; }
+.libraryList { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; overflow: auto; padding: 2px; }
+.modelCard { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
+.modelCard:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(13, 155, 181, .12); }
+.modelCard.active { border-color: var(--accent); background: var(--accent-soft); }
+.modelCard p { margin: 0; font-size: 13px; color: #33403d; }
+.modelCard small { color: var(--muted); font-size: 12px; }
+.modelTop { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.modelTop b { font-size: 14.5px; margin-right: 4px; }
+.warnBadge { background: var(--warn-soft); color: var(--warn); }
+.setChips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--accent); color: #07667a; background: var(--panel); border-radius: 99px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
+.chip:hover { background: var(--accent-soft); }
+.sensitiveBanner { position: absolute; bottom: 64px; left: 12px; background: rgba(179, 84, 30, .92); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; box-shadow: var(--shadow); z-index: 2; max-width: calc(100% - 24px); }
+
+@media (max-width: 900px) {
+  .workspace { grid-template-columns: 1fr; grid-template-rows: 62vh auto; overflow: auto; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); min-height: 60vh; }
+  .displayControls { top: auto; bottom: 110px; }
+  .tools { margin-left: 0; }
+}
+
+/* 學習頁專用 */
+.learnMark { background: #07667a; }
+.learnSpace { grid-template-columns: minmax(0, 1fr) 440px; }
+.learnPanel { display: flex; flex-direction: column; min-height: 0; }
+.lessonHead { display: flex; flex-direction: column; padding: 12px 16px 8px; border-bottom: 1px solid var(--line); flex: none; }
+.lessonHead strong { font-size: 15px; }
+.lessonHead small { color: var(--muted); font-size: 12px; }
+.learnList { flex: none; max-height: 34%; overflow: auto; padding: 8px 16px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; }
+.regionGroup h4 { margin: 2px 0 4px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.chip.activeChip { background: #07667a; border-color: #07667a; color: #fff; }
+.learnCard { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 18px; font-size: 14px; line-height: 1.7; }
+.learnCard header h3 { margin: 0; font-size: 19px; }
+.learnCard header .en { font-size: 14px; color: var(--muted); font-weight: 500; margin-left: 4px; }
+.learnCard .tags { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+.learnCard .bones { margin: 4px 0 0; color: #33403d; font-size: 13px; }
+.learnCard section { margin-top: 12px; }
+.learnCard h4 { margin: 0 0 3px; font-size: 13px; color: #07667a; letter-spacing: .5px; }
+.learnCard p { margin: 0; }
+.learnCard ul { margin: 0; padding-left: 20px; }
+.learnCard li small { display: block; color: var(--muted); font-size: 11.5px; }
+.learnCard .sources { margin-top: 14px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 11.5px; color: var(--muted); }
+.learnCard table td { font-size: 13px; }
+.cardNav { display: flex; justify-content: space-between; margin-top: 16px; }
+.apiBox { margin-top: 12px; padding: 8px 10px; background: var(--soft); border-radius: 8px; }
+.apiBox div { margin-top: 6px; white-space: pre-wrap; font-size: 13px; }
+@media (max-width: 900px) {
+  .learnSpace { grid-template-columns: 1fr; }
+  .learnList { max-height: none; }
+}
+</style>
+<script>
+  // 模組載不進來（多半是沒網路，three.js 在 jsdelivr）時，至少告訴使用者原因
+  window.addEventListener('error', function (event) {
+    var box = document.getElementById('loading');
+    if (!box) return;
+    box.className = 'loading error';
+    document.getElementById('loadingText').textContent = '3D 程式載入失敗';
+    document.getElementById('loadingDetail').textContent = String(event.message || '') + '（第一次開需要網路下載 three.js）';
+  });
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="mark learnMark">SK</span><span class="brandText"><strong>頭骨解剖 學習模式</strong><small id="modelName">尚未選擇教材</small></span></div>
+    <nav class="pageNav" aria-label="切換頁面"><a href="標註.html">標註</a><a class="active" href="學習.html">學習</a></nav>
+    <div class="tools">
+      <button class="btn primary" id="openModel">選擇教材</button><input id="modelFile" class="hidden" type="file" multiple accept=".glb,.gltf,.json,model/gltf-binary,application/json">
+      <button class="btn" id="importJson">開啟標註 JSON</button><input id="importFile" class="hidden" type="file" accept="application/json,.json">
+      <select class="btn" id="displayMode" aria-label="外觀"><option value="lit">照片貼圖</option><option value="unlit">貼圖原色</option><option value="plain">素色骨頭</option></select>
+      <label class="check"><input id="labels" type="checkbox" checked> 顯示代碼</label>
+    </div>
+  </header>
+  <main class="workspace learnSpace">
+    <section class="stage" id="stage">
+      <div id="viewer" aria-label="3D 模型"></div>
+      <div class="views" aria-label="切換視角">
+        <button data-view="front" title="正面 norma frontalis">前</button><button data-view="back" title="後面 norma occipitalis">後</button><button data-view="left" title="左側面 norma lateralis">左</button><button data-view="right" title="右側面">右</button><button data-view="top" title="上面 norma verticalis">上</button><button data-view="bottom" title="底面 norma basilaris">下</button>
+      </div>
+      <div class="sensitiveBanner hidden" id="sensitiveBanner">大體老師資料：僅限教學使用，請勿截圖外流或上傳到雲端與社群</div>
+      <div class="frameBadge hidden" id="frameBadge"></div>
+      <div class="loading hidden" id="loading"><div><b id="loadingText">載入中…</b><small id="loadingDetail"></small><button class="btn hidden" id="loadingClose">關閉</button></div></div>
+      <div class="stageHint placing"><b>學習模式</b><span>點圖釘或右邊的名稱看講解；左鍵拖曳旋轉、右鍵平移、滾輪縮放；← → 逐點看。</span></div>
+      <div class="dropzone" id="dropzone"><div><b>選一份教材開始</b><small>教材＝模型＋一份在標註頁存好的標註。用模型庫時按「選擇教材」；直接開檔時，把 .glb 和對應的 .json 一起拖進來。</small></div></div>
+    </section>
+    <aside class="panel learnPanel">
+      <div class="lessonHead" id="lessonHead"></div>
+      <div class="learnList" id="learnList"></div>
+      <article class="learnCard" id="learnCard"></article>
+    </aside>
+  </main>
+</div>
+<div class="modal hidden" id="libraryModal" role="dialog" aria-modal="true" aria-labelledby="libraryTitle">
+  <div class="modalCard wideCard">
+    <div class="modalHead"><div><strong id="libraryTitle">選擇模型</strong><small id="librarySubtitle"></small></div><button type="button" id="libraryClose" aria-label="關閉">×</button></div>
+    <p class="note">點卡片開模型；點卡片裡的標註名稱，會連同那份標註一起開。</p>
+    <div class="libraryList" id="libraryList"></div>
+    <div class="modalActions"><button type="button" class="btn" id="libraryOpenFile">開啟電腦裡的檔案…</button><span></span><button type="button" class="btn" id="libraryRefresh">重新整理清單</button></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/","three-mesh-bvh":"https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.15/build/index.module.min.js"}}</script>
+<script type="module">
+// ===== geometry.js =====
+// 頭骨標註器的純數學：重心座標、法蘭克福座標系、比例校正、量測、網格雜湊。
+// 刻意不碰 three.js，才能用 node 直接測（tests/geometry.test.mjs）。
+// 座標一律是 [x, y, z] 陣列；矩陣一律是列優先的 4×4 巢狀陣列。
+
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const mul = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = a => Math.hypot(a[0], a[1], a[2]);
+const distance = (a, b) => norm(sub(a, b));
+
+function normalize(a) {
+  const n = norm(a);
+  if (!(n > 1e-12)) throw new Error('向量長度為零，無法定方向');
+  return mul(a, 1 / n);
+}
+
+// 與 8078 的 barycentricForHit 同一套：投影到三角形平面，負值截成 0 再重新正規化。
+// 退化判準改成相對值：8078 用 mm 座標、門檻 1e-12 沒問題，但照片重建的模型常是公尺，
+// 百萬面等級的小三角形 den 會小於 1e-12 而被誤判成退化。
+function barycentric(p, a, b, c) {
+  const v0 = sub(b, a), v1 = sub(c, a), v2 = sub(p, a);
+  const d00 = dot(v0, v0), d01 = dot(v0, v1), d11 = dot(v1, v1), d20 = dot(v2, v0), d21 = dot(v2, v1);
+  const den = d00 * d11 - d01 * d01;
+  if (!(d00 > 0) || !(d11 > 0) || Math.abs(den) <= 1e-12 * d00 * d11) return [1, 0, 0];
+  const v = (d11 * d20 - d01 * d21) / den, w = (d00 * d21 - d01 * d20) / den, u = 1 - v - w;
+  const clipped = [Math.max(0, u), Math.max(0, v), Math.max(0, w)];
+  const sum = clipped[0] + clipped[1] + clipped[2];
+  return sum > 0 ? clipped.map(value => value / sum) : [1, 0, 0];
+}
+
+function fromBarycentric(a, b, c, weights) {
+  const [u, v, w] = weights;
+  return [a[0] * u + b[0] * v + c[0] * w, a[1] * u + b[1] * v + c[1] * w, a[2] * u + b[2] * v + c[2] * w];
+}
+
+// 法蘭克福水平面座標系。輸入是模型座標的左右 porion 與一側 orbitale。
+// 輸出軸（右手座標）：+X 往受試者左側、+Y 往上、+Z 往前；原點在兩側 porion 中點。
+// FH 平面就是 Y = 0；X = 0 是通過 porion 中點、垂直於耳點連線的近似正中矢狀面。
+function frankfurtFrame(poL, poR, orbitale) {
+  const origin = mul(add(poL, poR), 0.5);
+  const x = normalize(sub(poL, poR));
+  const toOrbitale = sub(orbitale, origin);
+  const forward = sub(toOrbitale, mul(x, dot(toOrbitale, x)));
+  if (norm(forward) < 1e-9 * Math.max(1, norm(toOrbitale))) throw new Error('orbitale 幾乎落在兩側 porion 的連線上，無法定出平面');
+  const z = normalize(forward);
+  const y = cross(z, x);
+  return { origin, x, y, z };
+}
+
+// 輸出 = scale · R · (p − origin)，R 的三列是 frame 的 x、y、z 軸。沒有 frame 時只做等比縮放。
+function makeTransform(scale, frame = null) {
+  if (!frame) return [[scale, 0, 0, 0], [0, scale, 0, 0], [0, 0, scale, 0], [0, 0, 0, 1]];
+  const row = axis => [...mul(axis, scale), -scale * dot(axis, frame.origin)];
+  return [row(frame.x), row(frame.y), row(frame.z), [0, 0, 0, 1]];
+}
+
+function applyTransform(m, p) {
+  return [0, 1, 2].map(i => m[i][0] * p[0] + m[i][1] * p[1] + m[i][2] * p[2] + m[i][3]);
+}
+
+// 游標卡尺校正：每組是「模型上兩點的距離」對「實物量到的 mm」。
+// 最小平方的等比係數 s = Σ m·d / Σ d²；residuals 與輸入同序（無效的一組回 null）。
+function fitScale(pairs) {
+  const valid = pairs.filter(pair => pair.modelDistance > 0 && pair.measuredMm > 0);
+  if (!valid.length) return null;
+  const num = valid.reduce((total, pair) => total + pair.measuredMm * pair.modelDistance, 0);
+  const den = valid.reduce((total, pair) => total + pair.modelDistance * pair.modelDistance, 0);
+  const factor = num / den;
+  const residuals = pairs.map(pair => (pair.modelDistance > 0 && pair.measuredMm > 0) ? factor * pair.modelDistance - pair.measuredMm : null);
+  const used = residuals.filter(value => value !== null);
+  const rms = Math.sqrt(used.reduce((total, value) => total + value * value, 0) / used.length);
+  return { factor, residuals, rms, n: valid.length };
+}
+
+function angleDeg(a, vertex, c) {
+  const u = sub(a, vertex), v = sub(c, vertex), nu = norm(u), nv = norm(v);
+  if (!(nu > 1e-12) || !(nv > 1e-12)) return NaN;
+  return Math.acos(Math.min(1, Math.max(-1, dot(u, v) / (nu * nv)))) * 180 / Math.PI;
+}
+
+// 網格指紋：cyrb53 的兩條 32 位元雜湊逐位元組處理，輸出 16 位 hex。
+// 只用來確認「JSON 是不是這個網格標的」（跟 8078 的 templateGeometryHash 同用途），不是密碼學用途。
+function hashChunks(chunks, seed = 0) {
+  let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+  for (const chunk of chunks) {
+    const bytes = chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
+    for (let i = 0; i < bytes.length; i++) {
+      h1 = Math.imul(h1 ^ bytes[i], 2654435761);
+      h2 = Math.imul(h2 ^ bytes[i], 1597334677);
+    }
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0');
+}
+
+// 四捨五入到固定小數位，避免 JSON 裡出現 0.30000000000000004 這種雜訊。
+const round = (value, digits = 4) => Number(Number(value).toFixed(digits));
+
+// ===== protocol.js =====
+// 預設 landmark 清單、量測、指數。定義與出處整理在 頭骨3D標註.md 的「Landmark 定義」。
+// 定義主要依 Caple & Stephan 2016 標準化命名（Int J Legal Med 130:863，DOI 10.1007/s00414-015-1292-1）
+// 與 Hall et al. 骨學教材；Martin & Saller、Howells、Buikstra & Ubelaker 原書沒有逐字比對。
+// 順序刻意把法蘭克福平面的三點放最前面：先標它們就能先擺正，後面的點比較好找。
+// bone 留空＝任一網格都可以（目前的模型是一整塊；日後下頷骨分開再指定）。
+const L = (code, name, desc, extra = {}) => ({ code, name, side: 'L', bone: '', desc, required: true, ...extra });
+const R = (code, name, desc, extra = {}) => ({ code, name, side: 'R', bone: '', desc, required: true, ...extra });
+const M = (code, name, desc, extra = {}) => ({ code, name, side: 'M', bone: '', desc, required: true, ...extra });
+const pair = (code, name, desc, extra) => [L(`${code}_L`, `${name}（左）`, desc, extra), R(`${code}_R`, `${name}（右）`, desc, extra)];
+
+// 顱蓋鋸開線附近的點（依 Grant's／Cunningham's 的鋸線位置推論，要拿實物核對）
+const CAP = '在顱蓋上：點本身完好，但它跟顱底點的距離會吃進顱蓋裝回位置的誤差。拍攝前先把顱蓋固定。';
+const EDGE = '可能剛好落在顱蓋鋸開線上；鋸線經過時請在旁邊註明。';
+const JAW = '在下頷骨上：教學模型的下頷常用彈簧連接，跨上下頷的量測受咬合位置影響。';
+const EXTREME = '按極值定義（卡尺量最大／最小處），先擺正法蘭克福平面再找最外側的點比較可靠。';
+
+const SKULL_LANDMARKS = [
+  ...pair('po', '耳門上點 porion', '外耳道上緣的最高點。法蘭克福平面的定義點之一。'),
+  ...pair('or', '眶下點 orbitale', '眶下緣的最低點。法蘭克福平面慣例用左側。點在眶「緣」上，不要點進眶內的眶底。'),
+  M('n', '鼻根點 nasion', '額鼻縫與正中矢狀面的交點。'),
+  M('g', '眉間點 glabella', '額骨下緣正中、兩側眉弓之間最向前突出的點。', { caution: EDGE }),
+  M('ns', '鼻棘點 nasospinale', '梨狀孔下緣與正中矢狀面的交點。'),
+  M('pr', '上齒槽前點 prosthion', '兩上中門齒之間，上頷齒槽前緣的正中點。'),
+  M('b', '前囟點 bregma', '矢狀縫與冠狀縫的交點。', { caution: CAP }),
+  M('l', '人字點 lambda', '矢狀縫與人字縫的交點。', { caution: CAP }),
+  M('op', '顱後點 opisthocranion', '枕骨正中最後方的點，不含枕外隆凸區；最大顱長的後端點。', { caution: `${EXTREME}${EDGE}` }),
+  M('ba', '顱底點 basion', '枕骨大孔前緣的正中點。'),
+  M('o', '枕大孔後點 opisthion', '枕骨大孔後緣的正中點。'),
+  ...pair('zy', '顴點 zygion', '顴弓最外側的點（顴寬的端點）。', { caution: EXTREME }),
+  ...pair('eu', '顱側點 euryon', '腦顱最寬處的端點（最大顱寬的兩端），用卡尺量最寬處決定。', { caution: `${EXTREME}${EDGE}` }),
+  ...pair('ft', '額顳點 frontotemporale', '顳線在額骨上最向前內側的點（最小額寬的端點）。', { caution: EDGE }),
+  ...pair('ms', '乳突點 mastoidale', '乳突最下方的尖端。'),
+  ...pair('d', '淚點 dacryon', '眶內緣上，淚上頷縫與額骨相交的點。'),
+  ...pair('ec', '眶外緣點 ectoconchion', '眶外側緣與「橫向平分眼眶的線」的交點。'),
+  ...pair('al', '梨狀孔側點 alare', '梨狀孔最外側的點。'),
+  M('id', '下齒槽前點 infradentale', '兩下中門齒之間齒槽中隔的頂端。', { caution: JAW }),
+  M('pg', '頦前點 pogonion', '頦隆凸正中最向前的點（擺正後判斷）。', { caution: JAW }),
+  M('me', '頦下點 menton', '頦聯合正中最下方的點。', { caution: JAW }),
+  M('gn', '頦頂點 gnathion', 'pogonion 與 menton 的中點（Caple & Stephan 2016）。', { caution: `另有教材定義為「下頷體下緣正中點」，兩者不同；研究用請寫明採用哪一版。${JAW}` }),
+  ...pair('go', '下頷角點 gonion', '下頷角圓弧上，平分下頷枝後緣與下頷體下緣夾角的點。', { caution: JAW }),
+  // 以下三個不是顱骨測量點，是解剖教學的必考位置（學習頁有講解）
+  ...pair('pt', '翼點 pterion', '額骨、頂骨、顳骨鱗部與蝶骨大翼交會處（H 形縫）的中心。教學點。', { caution: '教學頭骨的顱蓋鋸線可能經過這一帶，請對照實物。' }),
+  ...pair('ast', '星點 asterion', '頂骨、顳骨與枕骨三骨交會的點（人字縫、頂乳突縫、枕乳突縫交會）。教學點。', { caution: EDGE }),
+  M('i', '枕外隆凸點 inion', '兩側上項線頂點之間、枕外隆凸基部的正中點。教學點。', { caution: EDGE }),
+];
+
+// martin：編號依 Martin & Knussmann 1988 查證；note 標出查證狀態
+const SKULL_MEASUREMENTS = [
+  { code: 'M1', martin: 'Martin 1', name: '最大顱長', type: 'distance', points: ['g', 'op'], preset: true },
+  { code: 'M8', martin: 'Martin 8', name: '最大顱寬', type: 'distance', points: ['eu_L', 'eu_R'], preset: true },
+  { code: 'M9', martin: 'Martin 9', name: '最小額寬', type: 'distance', points: ['ft_L', 'ft_R'], preset: true },
+  { code: 'M17', martin: 'Martin 17（部分查證）', name: '顱高（顱底點–前囟點）', type: 'distance', points: ['ba', 'b'], preset: true },
+  { code: 'M5', martin: 'Martin 5', name: '顱底長', type: 'distance', points: ['ba', 'n'], preset: true },
+  { code: 'M7', martin: 'Martin 7（部分查證）', name: '枕骨大孔長', type: 'distance', points: ['ba', 'o'], preset: true },
+  { code: 'M45', martin: 'Martin 45', name: '顴寬', type: 'distance', points: ['zy_L', 'zy_R'], preset: true },
+  { code: 'M48', martin: 'Martin 48', name: '上面高', type: 'distance', points: ['n', 'pr'], preset: true },
+  { code: 'M47', martin: 'Martin 47（編號未查證）', name: '全面高', type: 'distance', points: ['n', 'gn'], preset: true },
+  { code: 'M55', martin: 'Martin 55', name: '鼻高', type: 'distance', points: ['n', 'ns'], preset: true },
+  { code: 'M54', martin: 'Martin 54', name: '鼻寬', type: 'distance', points: ['al_L', 'al_R'], preset: true },
+  { code: 'M51a_L', martin: 'Martin 51a', name: '眶寬（左，淚點起算）', type: 'distance', points: ['d_L', 'ec_L'], preset: true },
+  { code: 'M66', martin: 'Martin 66', name: '下頷角寬', type: 'distance', points: ['go_L', 'go_R'], preset: true },
+];
+
+// classes 由小到大：value < below 就歸那一級，最後一級 below 為 Infinity
+const DEFAULT_INDICES = [
+  { code: 'CI', name: '顱指數（最大顱寬／最大顱長 ×100）', numerator: 'M8', denominator: 'M1',
+    classes: [{ below: 65, label: '超長顱' }, { below: 70, label: '特長顱' }, { below: 75, label: '長顱 dolichocranic' }, { below: 80, label: '中顱 mesocranic' },
+      { below: 85, label: '短顱 brachycranic' }, { below: 90, label: '特短顱' }, { below: Infinity, label: '超短顱' }] },
+];
+
+const PRESETS = {
+  skull: { label: '頭骨：顱骨測量 33 點＋教學點 5 點', landmarks: SKULL_LANDMARKS, measurements: SKULL_MEASUREMENTS },
+  blank: { label: '空白：點模型就新增自訂點（大體標本用）', landmarks: [], measurements: [] },
+};
+const DEFAULT_LANDMARKS = SKULL_LANDMARKS;
+const DEFAULT_MEASUREMENTS = SKULL_MEASUREMENTS;
+
+// ===== common.js =====
+// 兩頁共用的小工具：DOM 取用、跳脫、提示訊息、載入遮罩。
+const $ = id => document.getElementById(id);
+let toastTimer = null;
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+}
+function toast(text, type = 'ok') {
+  clearTimeout(toastTimer);
+  $('toast').textContent = text;
+  $('toast').className = `toast show ${type === 'warn' ? 'warn' : type === 'bad' ? 'bad' : ''}`;
+  toastTimer = setTimeout(() => { $('toast').className = 'toast'; }, 3400);
+}
+function setLoading(show, title = '', detail = '') {
+  $('loading').classList.toggle('hidden', !show);
+  $('loading').classList.remove('error');
+  $('loadingText').textContent = title;
+  $('loadingDetail').textContent = detail;
+  $('loadingClose').classList.add('hidden');
+}
+function failLoading(title, detail) {
+  setLoading(true, title, detail);
+  $('loading').classList.add('error');
+  $('loadingClose').classList.remove('hidden');
+}
+
+// ===== core.js =====
+// three.js 場景、載入 GLB、點選、landmark 圖釘、視角。
+// 世界座標＝「輸出座標」：modelRoot 的矩陣就是 模型座標 → 輸出座標 的轉換（比例校正＋法蘭克福擺正），
+// 所以圖釘、量測、JSON 的 position 全在同一個座標系裡。
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// 攝影測量網格動輒百萬面，沒有 BVH 時每次點選都要逐面測試；裝上後點選不到 1 毫秒
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+const THREE_ADDONS = 'https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/';
+const BONE_COLOR = 0xe5cdb1, PIN_COLOR = 0xe65d32, PIN_ACTIVE = 0x0d9bb5, LINE_CAL = 0x7b5cd6, LINE_MEASURE = 0x0d9bb5;
+
+const viewer = $('viewer');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+viewer.appendChild(renderer.domElement);
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.className = 'labelLayer';
+viewer.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xe7eceb);
+const camera = new THREE.PerspectiveCamera(34, 1, 0.01, 100);
+scene.add(camera);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x71878b, 1.5));
+const keyLight = new THREE.DirectionalLight(0xfff6ea, 1.3);
+scene.add(keyLight, keyLight.target);
+// 跟著相機的頭燈：轉到哪面，哪面就亮，找骨性標記比較不會被陰影騙
+const headlight = new THREE.DirectionalLight(0xffffff, 1.1), headTarget = new THREE.Object3D();
+headTarget.position.set(0, 0, -1);
+camera.add(headlight, headTarget);
+headlight.target = headTarget;
+
+const modelRoot = new THREE.Group();
+modelRoot.matrixAutoUpdate = false;
+const pinGroup = new THREE.Group(), labelGroup = new THREE.Group(), lineGroup = new THREE.Group();
+scene.add(modelRoot, pinGroup, labelGroup, lineGroup);
+const pinGeometry = new THREE.SphereGeometry(1, 20, 14);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.screenSpacePanning = true;
+controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+controls.mouseButtons.MIDDLE = THREE.MOUSE.DOLLY;
+controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+const viewCenter = new THREE.Vector3();
+let viewDistance = 3, sceneRadius = 1;
+
+const loader = new GLTFLoader();
+const draco = new DRACOLoader();
+draco.setDecoderPath(THREE_ADDONS + 'libs/draco/gltf/');
+loader.setDRACOLoader(draco);
+loader.setMeshoptDecoder(MeshoptDecoder);
+
+function resizeViewer() {
+  const width = Math.max(1, viewer.clientWidth), height = Math.max(1, viewer.clientHeight);
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(width, height, false);
+  labelRenderer.setSize(width, height);
+}
+new ResizeObserver(resizeViewer).observe(viewer);
+// 轉到模型背面的點，代碼標籤淡掉（CSS2D 標籤不會被模型擋住，不淡掉會以為點在正面）
+const toCamera = new THREE.Vector3();
+function updateLabelVisibility() {
+  for (const label of labelGroup.children) {
+    const { normal, anchor } = label.userData;
+    if (!normal) continue;
+    toCamera.copy(camera.position).sub(anchor);
+    label.element.classList.toggle('behind', toCamera.dot(normal) < 0);
+  }
+}
+renderer.setAnimationLoop(() => {
+  controls.update();
+  updateLabelVisibility();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+
+// ---------- 載入 ----------
+function parseGlb(buffer) {
+  return new Promise((resolve, reject) => loader.parse(buffer, '', resolve, error => reject(error instanceof Error ? error : new Error(String(error?.message || error)))));
+}
+
+function extractPositions(geometry) {
+  const attribute = geometry.getAttribute('position'), out = new Float32Array(attribute.count * 3);
+  for (let i = 0; i < attribute.count; i++) {
+    out[i * 3] = attribute.getX(i); out[i * 3 + 1] = attribute.getY(i); out[i * 3 + 2] = attribute.getZ(i);
+  }
+  return out;
+}
+
+// 面積加權形心（模型座標）：擺正後用來判斷頭骨有沒有上下顛倒
+function areaCentroid(entries) {
+  let total = 0; const acc = [0, 0, 0];
+  for (const entry of entries) {
+    const count = entry.faceCount;
+    for (let f = 0; f < count; f++) {
+      const [a, b, c] = faceVertices(entry, f).map(index => vertexModel(entry, index));
+      const area = norm(cross(sub(b, a), sub(c, a))) / 2;
+      total += area;
+      for (let k = 0; k < 3; k++) acc[k] += area * (a[k] + b[k] + c[k]) / 3;
+    }
+  }
+  return total > 0 ? acc.map(value => value / total) : [0, 0, 0];
+}
+
+async function loadModelBuffer(buffer, fileName) {
+  const gltf = await parseGlb(buffer);
+  const root = gltf.scene || gltf.scenes?.[0];
+  if (!root) throw new Error('GLB 裡沒有場景');
+  root.updateMatrixWorld(true); // 此時還沒掛到 modelRoot，matrixWorld 就是「模型座標」
+  const entries = [], used = new Set();
+  root.traverse(object => {
+    if (!object.isMesh || !object.geometry?.getAttribute('position')) return;
+    const base = String(object.name || 'mesh').trim().replace(/[^A-Za-z0-9._-]/g, '_') || 'mesh';
+    let id = base, k = 0;
+    while (used.has(id)) id = `${base}_${++k}`; // 同一個 mesh 拆成多個 primitive 時名字會重複
+    used.add(id);
+    const geometry = object.geometry, positions = extractPositions(geometry);
+    if (!geometry.getAttribute('normal')) geometry.computeVertexNormals(); // OpenMVS 等輸出可能不帶法向量
+    // indirect：BVH 另存一份排序，不去重排原本的三角面索引。
+    // 預設模式會重排 index，網格指紋與 faceIndex 都會跟著變，舊草稿／JSON 就對不上了。
+    geometry.computeBoundsTree({ indirect: true });
+    const index = geometry.index ? geometry.index.array : null;
+    const faceCount = index ? index.length / 3 : positions.length / 9;
+    entries.push({ id, name: object.name || id, mesh: object, positions, index, faceCount, vertexCount: positions.length / 3,
+      localToModel: object.matrixWorld.clone(), original: object.material, materials: {} });
+  });
+  if (!entries.length) throw new Error('GLB 裡沒有網格');
+  const chunks = [];
+  for (const entry of entries) {
+    chunks.push(new Uint32Array([entry.vertexCount, entry.faceCount]), entry.positions);
+    if (entry.index) chunks.push(entry.index);
+  }
+  const boxModel = new THREE.Box3().setFromObject(root);
+  clearModel();
+  modelRoot.add(root);
+  // centroid 留到擺正時才算（百萬面等級一載入就算會卡）
+  return { fileName, root, meshes: entries, hash: hashChunks(chunks), centroid: null,
+    boxModel: { min: boxModel.min.toArray(), max: boxModel.max.toArray() } };
+}
+
+function disposeModel(model) {
+  if (!model) return;
+  for (const entry of model.meshes) {
+    for (const material of Object.values(entry.materials)) (Array.isArray(material) ? material : [material]).forEach(item => item?.dispose?.());
+  }
+}
+
+function disposeTree(object) {
+  object.traverse(child => {
+    if (!child.isMesh) return;
+    child.geometry?.disposeBoundsTree?.();
+    child.geometry?.dispose();
+    (Array.isArray(child.material) ? child.material : [child.material]).forEach(material => material?.dispose());
+  });
+}
+function clearModel() {
+  while (modelRoot.children.length) { const child = modelRoot.children.pop(); disposeTree(child); }
+}
+
+// ---------- 幾何查詢（全部以 mark 的三角面＋重心座標為準） ----------
+function faceVertices(entry, faceIndex) {
+  return entry.index ? [entry.index[faceIndex * 3], entry.index[faceIndex * 3 + 1], entry.index[faceIndex * 3 + 2]] : [faceIndex * 3, faceIndex * 3 + 1, faceIndex * 3 + 2];
+}
+function vertexLocal(entry, index) {
+  if (!(index >= 0 && index < entry.vertexCount)) throw new Error(`頂點編號 ${index} 超出網格範圍`);
+  return [entry.positions[index * 3], entry.positions[index * 3 + 1], entry.positions[index * 3 + 2]];
+}
+const tempVector = new THREE.Vector3();
+function toModel(entry, local) { return tempVector.set(local[0], local[1], local[2]).applyMatrix4(entry.localToModel).toArray(); }
+function vertexModel(entry, index) { return toModel(entry, vertexLocal(entry, index)); }
+
+// 回傳 mark 在模型座標的位置；網格對不上時回 null
+function markModelPosition(model, mark) {
+  const entry = model?.meshes.find(item => item.id === mark?.bone);
+  if (!entry || !Array.isArray(mark.faceVertexIndices) || !Array.isArray(mark.barycentricWeights)) return null;
+  try {
+    const [a, b, c] = mark.faceVertexIndices.map(index => vertexLocal(entry, Number(index)));
+    return toModel(entry, fromBarycentric(a, b, c, mark.barycentricWeights.map(Number)));
+  } catch { return null; }
+}
+
+// 標記點的表面法向量（輸出座標、單位向量），用來判斷標籤是不是轉到背面。
+// 三角面的繞行方向不一定朝外，所以用網格自帶的頂點法向量決定正負號。
+function markOutputNormal(model, mark, rows) {
+  const entry = model?.meshes.find(item => item.id === mark?.bone);
+  if (!entry) return null;
+  try {
+    const local = mark.faceVertexIndices.map(index => vertexLocal(entry, Number(index)));
+    let normal = cross(sub(local[1], local[0]), sub(local[2], local[0]));
+    const attribute = entry.mesh.geometry.getAttribute('normal');
+    if (attribute) {
+      const vertexNormal = mark.faceVertexIndices.reduce((sum, index) => add(sum, [attribute.getX(index), attribute.getY(index), attribute.getZ(index)]), [0, 0, 0]);
+      if (dot(normal, vertexNormal) < 0) normal = mul(normal, -1);
+    }
+    const origin = fromBarycentric(...local, mark.barycentricWeights.map(Number));
+    const scale = Math.max(norm(sub(local[1], local[0])), 1e-9);
+    const tip = add(origin, mul(normalize(normal), scale));
+    const out = [origin, tip].map(point => applyTransform(rows, toModel(entry, point)));
+    return normalize(sub(out[1], out[0]));
+  } catch { return null; }
+}
+
+// ---------- 點選 ----------
+const raycaster = new THREE.Raycaster(), pointer = new THREE.Vector2();
+raycaster.firstHitOnly = true; // three-mesh-bvh：只要最近的那一個交點
+function raycastAt(model, clientX, clientY) {
+  if (!model) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const targets = model.meshes.filter(entry => entry.mesh.visible).map(entry => entry.mesh);
+  return raycaster.intersectObjects(targets, false)[0] || null;
+}
+
+function hitToMark(model, hit) {
+  const entry = model.meshes.find(item => item.mesh === hit.object);
+  const faceVertexIndices = [hit.face.a, hit.face.b, hit.face.c];
+  const local = hit.object.worldToLocal(hit.point.clone()).toArray();
+  const corners = faceVertexIndices.map(index => vertexLocal(entry, index));
+  const barycentricWeights = barycentric(local, ...corners);
+  const snapped = fromBarycentric(...corners, barycentricWeights);
+  let vertexIndex = faceVertexIndices[0], best = Infinity;
+  corners.forEach((corner, i) => { const d = distance(corner, snapped); if (d < best) { best = d; vertexIndex = faceVertexIndices[i]; } });
+  return { bone: entry.id, faceIndex: hit.faceIndex, faceVertexIndices, barycentricWeights, vertexIndex };
+}
+
+// ---------- 顯示 ----------
+function setModelTransform(rows) {
+  modelRoot.matrix.set(...rows.flat());
+  modelRoot.matrixWorldNeedsUpdate = true;
+  modelRoot.updateMatrixWorld(true);
+}
+
+function outputBox() { return new THREE.Box3().setFromObject(modelRoot); }
+
+// 取景用的「主體範圍」：抽樣頂點取 3%–97% 分位數。整個場景（含周圍環境）都保留顯示，
+// 但鏡頭對準大部分點所在的地方，遠處零星的環境碎片不會把主體擠成一小塊。
+function focusBox() {
+  const samples = [], point = new THREE.Vector3();
+  const total = modelRoot.children.length ? countMeshes() : 0;
+  modelRoot.updateMatrixWorld(true);
+  modelRoot.traverse(object => {
+    if (!object.isMesh) return;
+    const position = object.geometry.getAttribute('position');
+    const stride = Math.max(1, Math.floor(position.count / Math.max(1, 120000 / Math.max(1, total))));
+    for (let i = 0; i < position.count; i += stride) samples.push(point.fromBufferAttribute(position, i).applyMatrix4(object.matrixWorld).toArray());
+  });
+  if (samples.length < 8) return outputBox();
+  const box = new THREE.Box3();
+  const quantile = (axis, q) => { const values = samples.map(p => p[axis]).sort((a, b) => a - b); return values[Math.floor(q * (values.length - 1))]; };
+  box.min.set(quantile(0, 0.03), quantile(1, 0.03), quantile(2, 0.03));
+  box.max.set(quantile(0, 0.97), quantile(1, 0.97), quantile(2, 0.97));
+  return box;
+}
+function countMeshes() { let count = 0; modelRoot.traverse(object => { if (object.isMesh) count++; }); return count; }
+
+// keepDirection：只改比例時保留目前視線方向；擺正後改回正面
+function frameModel(keepDirection) {
+  const box = focusBox(), whole = outputBox();
+  if (box.isEmpty()) return;
+  const direction = camera.position.clone().sub(controls.target);
+  box.getCenter(viewCenter);
+  sceneRadius = Math.max(box.getSize(tempVector).length() / 2, 1e-6);
+  const wholeRadius = Math.max(whole.getSize(tempVector).length() / 2, sceneRadius);
+  // 直式畫面的水平視角比垂直窄，取較窄的那個算距離，整顆才放得進畫面
+  const verticalFov = THREE.MathUtils.degToRad(camera.fov), horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+  viewDistance = sceneRadius / Math.sin(Math.min(verticalFov, horizontalFov) / 2) * 0.92;
+  camera.near = sceneRadius / 300; camera.far = (viewDistance + wholeRadius) * 4; camera.updateProjectionMatrix(); // far 要涵蓋整個場景，遠處環境才不會被裁掉
+  controls.minDistance = sceneRadius * 0.12; controls.maxDistance = Math.max(sceneRadius * 12, wholeRadius * 3);
+  keyLight.position.copy(viewCenter).add(new THREE.Vector3(-1.2, 2.2, 2.6).multiplyScalar(sceneRadius));
+  keyLight.target.position.copy(viewCenter);
+  if (keepDirection && direction.lengthSq() > 0) {
+    controls.target.copy(viewCenter);
+    camera.position.copy(viewCenter).add(direction.normalize().multiplyScalar(viewDistance));
+    controls.update();
+  } else setView('front');
+}
+
+// 右手座標、擺正後：+X 受試者左、+Y 上、+Z 前。上／下視角微偏，讓臉朝畫面上方。
+const VIEW_DIRECTIONS = { front: [0, 0, 1], back: [0, 0, -1], left: [1, 0, 0], right: [-1, 0, 0], top: [0, 1, -0.002], bottom: [0, -1, 0.002] };
+function setView(name) {
+  const direction = new THREE.Vector3(...(VIEW_DIRECTIONS[name] || VIEW_DIRECTIONS.front)).normalize();
+  controls.target.copy(viewCenter);
+  camera.position.copy(viewCenter).add(direction.multiplyScalar(viewDistance));
+  controls.update();
+}
+
+function focusAt(point) { controls.target.copy(point); controls.update(); }
+
+// 鏡頭平滑飛到某一點：從該點表面法向量的方向、距離 distanceFactor×整體視距看過去
+let flight = null;
+function flyTo(point, normal, distanceFactor = 0.45, duration = 700) {
+  const target = new THREE.Vector3(...point);
+  const direction = normal ? new THREE.Vector3(...normal) : camera.position.clone().sub(controls.target);
+  if (direction.lengthSq() === 0) direction.set(0, 0, 1);
+  const endPosition = target.clone().addScaledVector(direction.normalize(), viewDistance * distanceFactor);
+  const start = { target: controls.target.clone(), position: camera.position.clone(), time: performance.now() };
+  if (flight) cancelAnimationFrame(flight);
+  const step = now => {
+    const t = Math.min(1, (now - start.time) / duration), ease = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    controls.target.lerpVectors(start.target, target, ease);
+    camera.position.lerpVectors(start.position, endPosition, ease);
+    controls.update();
+    flight = t < 1 ? requestAnimationFrame(step) : null;
+  };
+  flight = requestAnimationFrame(step);
+}
+
+// 從指定相機（顯示座標）渲染一張指定大小的圖，回傳 PNG Blob。用來跟原始照片同角度比較。
+async function snapshotFromCamera({ position, target, up, fov, width, height }) {
+  const shot = new THREE.PerspectiveCamera(fov, width / height, camera.near, camera.far);
+  shot.position.set(...position); shot.up.set(...up); shot.lookAt(new THREE.Vector3(...target)); shot.updateMatrixWorld();
+  const previous = renderer.getSize(new THREE.Vector2()), ratio = renderer.getPixelRatio();
+  renderer.setPixelRatio(1); renderer.setSize(width, height, false);
+  renderer.render(scene, shot);
+  const blob = await new Promise(resolve => renderer.domElement.toBlob(resolve, 'image/png'));
+  renderer.setPixelRatio(ratio); renderer.setSize(previous.x, previous.y, false);
+  return blob;
+}
+
+// 點到哪個圖釘（學習頁用）：回傳圖釘的代碼
+function pinAt(clientX, clientY) {
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObjects(pinGroup.children, false)[0]?.object.userData.code || '';
+}
+
+function setMaterialMode(model, mode, opacity) {
+  for (const entry of model.meshes) {
+    let material = entry.materials[mode];
+    if (!material) {
+      const originalMap = (Array.isArray(entry.original) ? entry.original[0] : entry.original)?.map || null;
+      const vertexColors = !!entry.mesh.geometry.getAttribute('color'); // 攝影測量也可能用頂點色而不是貼圖
+      if (mode === 'lit') material = entry.original;
+      else if (mode === 'unlit') { material = new THREE.MeshBasicMaterial({ map: originalMap, vertexColors, color: originalMap || vertexColors ? 0xffffff : BONE_COLOR }); material.toneMapped = false; }
+      else material = new THREE.MeshStandardMaterial({ color: BONE_COLOR, roughness: 0.68, metalness: 0 });
+      entry.materials[mode] = material;
+    }
+    for (const item of Array.isArray(material) ? material : [material]) {
+      // 攝影測量的 unlit 材質（貼圖已含光影）不要再套色調映射，否則照片色會偏灰
+      if (item.isMeshBasicMaterial) item.toneMapped = false;
+      item.side = THREE.DoubleSide;
+      item.transparent = opacity < 0.999; item.opacity = opacity; item.depthWrite = opacity >= 0.72;
+      item.needsUpdate = true;
+    }
+    entry.mesh.material = material;
+  }
+}
+
+function clearOverlay(group) {
+  while (group.children.length) {
+    const child = group.children[group.children.length - 1];
+    group.remove(child); // CSS2DObject 被移除時才會把自己的 DOM 元素拿掉
+    if (child.isLine || child.isMesh) { if (child.geometry !== pinGeometry) child.geometry?.dispose(); child.material?.dispose(); }
+  }
+}
+
+// pins：[{code, position:[x,y,z]（輸出座標）, normal, active}]
+function drawPins(pins, radius, showLabels) {
+  clearOverlay(pinGroup); clearOverlay(labelGroup);
+  for (const pin of pins) {
+    const color = pin.active ? PIN_ACTIVE : PIN_COLOR;
+    const sphere = new THREE.Mesh(pinGeometry, new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: pin.active ? 0.5 : 0.28, roughness: 0.3 }));
+    sphere.scale.setScalar(radius * (pin.active ? 1.3 : 1));
+    sphere.position.set(...pin.position);
+    sphere.userData.code = pin.code;
+    pinGroup.add(sphere);
+    if (!showLabels) continue;
+    const element = document.createElement('div');
+    element.className = `pinLabel${pin.active ? ' active' : ''}`;
+    element.textContent = pin.code;
+    const label = new CSS2DObject(element);
+    label.position.set(pin.position[0], pin.position[1] + radius * 2.2, pin.position[2]);
+    label.userData = { anchor: new THREE.Vector3(...pin.position), normal: pin.normal ? new THREE.Vector3(...pin.normal) : null };
+    labelGroup.add(label);
+  }
+}
+
+// lines：[{from, to, kind: 'calibration' | 'measure'}]
+function drawLines(lines) {
+  clearOverlay(lineGroup);
+  for (const line of lines) {
+    const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...line.from), new THREE.Vector3(...line.to)]);
+    const material = line.kind === 'calibration'
+      ? new THREE.LineDashedMaterial({ color: LINE_CAL, dashSize: sceneRadius * 0.03, gapSize: sceneRadius * 0.02, depthTest: false, transparent: true })
+      : new THREE.LineBasicMaterial({ color: LINE_MEASURE, depthTest: false, transparent: true });
+    const object = new THREE.Line(geometry, material);
+    if (line.kind === 'calibration') object.computeLineDistances();
+    object.renderOrder = 10;
+    lineGroup.add(object);
+  }
+}
+
+// ===== library.js =====
+// 模型庫：有本機伺服器（serve.py）時列出模型、讀寫標註檔；放在靜態網站（例如 GitHub Pages）時讀同資料夾的 library.json（唯讀）；
+// 直接雙擊 HTML（file://）時退回「開啟檔案」。
+const LAST_MODEL_KEY = 'skull-annotator:last-model';
+const library = { server: false, static: false, models: [], onPick: null, onOpenFile: null };
+const hasCatalog = () => library.server || library.static; // 有模型可挑（本機伺服器或靜態目錄）
+const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點（大體）' };
+
+async function loadCatalog() {
+  library.server = false;
+  library.static = false;
+  library.models = [];
+  if (!location.protocol.startsWith('http')) return library.models;
+  try {
+    const response = await fetch('/api/models', { cache: 'no-store' });
+    const models = response.ok ? await response.json() : null;
+    if (Array.isArray(models)) { library.models = models; library.server = true; return library.models; }
+  } catch { /* 沒有本機伺服器 */ }
+  try { // 靜態網站：library.json 列出模型檔與唯讀的標註檔（相對路徑）
+    const response = await fetch('library.json', { cache: 'no-store' });
+    const models = response.ok ? await response.json() : null;
+    if (Array.isArray(models)) { library.models = models; library.static = true; }
+  } catch { /* 也沒有靜態目錄 */ }
+  return library.models;
+}
+
+async function apiJson(response) {
+  let payload = null;
+  try { payload = await response.json(); } catch { /* 伺服器沒回 JSON */ }
+  if (!response.ok) throw new Error(payload?.error || `伺服器回應 ${response.status}`);
+  return payload;
+}
+async function fetchModelBuffer(model) {
+  const response = await fetch(model.file || `/api/models/${model.id}/file`, { cache: model.file ? 'default' : 'no-store' });
+  if (!response.ok) throw new Error(`讀不到模型檔 ${model.fileName}（${response.status}）`);
+  return response.arrayBuffer();
+}
+async function fetchLandmarkSet(model, name) {
+  const set = model.landmarkSets.find(item => item.name === name);
+  if (set?.file) return apiJson(await fetch(set.file, { cache: 'no-store' }));
+  return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, { cache: 'no-store' }));
+}
+async function saveLandmarkSet(model, name, doc, expectedSavedAt) {
+  return apiJson(await fetch(`/api/models/${model.id}/landmarks/${encodeURIComponent(name)}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Expected-Saved-At': expectedSavedAt || '' }, body: JSON.stringify(doc),
+  }));
+}
+function rememberModel(model, setName = '') {
+  try { localStorage.setItem(LAST_MODEL_KEY, JSON.stringify({ id: model.id, setName })); } catch { /* 記不住也沒關係 */ }
+}
+function lastModel() {
+  try {
+    const last = JSON.parse(localStorage.getItem(LAST_MODEL_KEY) || 'null');
+    const model = library.models.find(item => item.id === last?.id);
+    return model ? { model, setName: last.setName || '' } : null;
+  } catch { return null; }
+}
+
+function formatSavedAt(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : `${date.getMonth() + 1}/${date.getDate()} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+// currentId：目前開著的模型；requireSets：學習頁只列出有標註的模型
+function renderLibrary(currentId = '', { requireSets = false } = {}) {
+  const list = $('libraryList');
+  const models = requireSets ? library.models.filter(model => model.landmarkSets.length) : library.models;
+  $('librarySubtitle').textContent = library.server
+    ? `本機伺服器找到 ${library.models.length} 個模型；雲端 vault 的「模型／」與本機私人資料夾（~/skull3d/models）都會列出來。`
+    : library.static
+      ? `網頁版模型庫：${library.models.length} 個模型。標註只存在這台瀏覽器的草稿，要留存請按「存成 JSON」下載檔案。`
+      : '現在是直接開檔（file://），看不到模型庫：請按下方「開啟電腦裡的檔案」，或雙擊「啟動標註器.bat」改用模型庫。';
+  if (!models.length) {
+    list.innerHTML = `<p class="note">${library.server ? (requireSets ? '還沒有任何標好的教材：先到標註頁標好並「存成 JSON」。' : '模型庫是空的：把 .glb 放進 vault 的「模型／」或 ~/skull3d/models。')
+      : library.static ? (requireSets ? '網頁版還沒有標好的教材：可按下方「開啟電腦裡的檔案」開模型，再開下載的標註 JSON。' : '網頁版模型庫是空的。') : ''}</p>`;
+    return;
+  }
+  list.innerHTML = models.map(model => `
+    <div class="modelCard${model.id === currentId ? ' active' : ''}" data-model="${escapeHtml(model.id)}" role="button" tabindex="0">
+      <div class="modelTop"><b>${escapeHtml(model.title)}</b>
+        <span class="badge">${model.source === 'local' ? '本機私人（不同步）' : model.source === 'web' ? '網頁版' : '雲端 vault'}</span>
+        ${model.sensitive ? '<span class="badge warnBadge">大體老師資料</span>' : ''}</div>
+      ${model.description ? `<p>${escapeHtml(model.description)}</p>` : ''}
+      <small>${escapeHtml(model.fileName)} · ${model.sizeMB} MB · ${PRESET_LABEL[model.preset] || model.preset} · ${model.landmarkSets.length} 份標註</small>
+      ${model.landmarkSets.length ? `<div class="setChips">${model.landmarkSets.map(set => `<button class="chip" data-set="${escapeHtml(set.name)}" title="${escapeHtml(set.annotator ? `標註者：${set.annotator}` : '')}">${escapeHtml(set.name)} · ${set.count} 點${set.savedAt ? ` · ${formatSavedAt(set.savedAt)}` : ''}</button>`).join('')}</div>` : ''}
+    </div>`).join('');
+  list.querySelectorAll('.modelCard').forEach(card => {
+    const model = library.models.find(item => item.id === card.dataset.model);
+    card.onclick = event => {
+      const chip = event.target.closest('[data-set]');
+      closeLibrary();
+      library.onPick?.(model, chip ? chip.dataset.set : '');
+    };
+    card.onkeydown = event => { if (event.key === 'Enter') card.click(); };
+  });
+}
+
+function openLibrary(currentId = '', options = {}) {
+  renderLibrary(currentId, options);
+  $('libraryModal').classList.remove('hidden');
+}
+function closeLibrary() { $('libraryModal').classList.add('hidden'); }
+
+function bindLibraryModal() {
+  $('libraryClose').onclick = closeLibrary;
+  $('libraryModal').onclick = event => { if (event.target === $('libraryModal')) closeLibrary(); };
+  $('libraryOpenFile').onclick = () => { closeLibrary(); library.onOpenFile?.(); };
+  $('libraryRefresh').onclick = async () => { await loadCatalog(); renderLibrary(); toast(`模型庫已更新：${library.models.length} 個模型`); };
+}
+
+// ===== <kb> =====
+const SKULL_KB = {"po": {"zh": "耳門上點", "en": "porion", "abbr": "po", "bilateral": true, "region": "側面", "bones": ["顳骨"], "definition": "外耳道（external acoustic meatus）骨性開口上緣的最高點；左右 po 加上左側 orbitale 定出法蘭克福平面（Frankfort horizontal, FH）。", "howToFind": "從側面找外耳道的骨性開口，乳突就在它的後下方（Moore）。先把頭骨大致擺成 FH（眶下緣與外耳道上緣同高），再沿開口上緣找最高點；Skeleton·ID 手冊也是先擺出 FH、再用水平輔助線微調。點在開口的骨緣上，不要點進管內。", "anatomy": "外耳道屬顳骨（逐字稿：鼓部含鼓膜與外耳道），向內通到鼓膜；乳突在開口後下方，莖突在乳突前內側（Moore）。胚胎上外耳道由第一咽溝衍生（109-1 詳解）。外耳道與鼓膜外面的一般感覺來自 V3（耳顳神經）、VII、X，鼓膜內面則由 IX 支配（114-1 詳解）。", "clinical": "FH 是擺正頭骨與頭影測量的標準參考面（Moore；1884 年法蘭克福會議通過，見研究筆記）；頭影測量另一條常用參考線 S–N 與 FH 平均約夾 7°（Reddy 2019）。側位片上耳桿影像的中心稱 machine porion，與骨性的 anatomical porion 不同，能否互換有爭議（Choi 2015）。", "examPoints": [{"text": "不同時參與外聽道與鼓膜一般感覺的是舌咽神經 IX（正解 C）；外聽道＋鼓膜外面＝V3、VII、X，鼓膜內面＝IX", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-5/ANAT-HN-08-5-114-1-Q-6fb0e5757b418dac.md（114-1 考選部官方 醫學（一）第7題）"}, {"text": "外聽道由第一咽溝衍生，是唯一保留下來的咽溝（正解 A）", "source": "醫師國考一階_已通過/胚胎學/題目詳解/12_眼耳與皮膚/EMBR-MAIN-18-109-1-Q-cf319246b50db35b.md（109-1）"}], "pitfalls": "Moore 把 FH 叫 orbitomeatal plane，但放射科的 orbitomeatal line 是外眥到外耳道中點（過去腦部 CT 軸切基準），兩者不同（Radiopaedia）。側位片的 machine porion 不等於骨性 porion。左右都要標；FH 固定用雙側 po＋左側 or（Yuan）。", "relatedMeasurements": ["法蘭克福平面（左右 po＋左 or）", "乳突長 po–ms（Giles 1970 性別判別式用；CoRA 稱 mastoid height；未列 Martin 編號）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003 Columbia 顱骨測量講義）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 3D 顱骨測量點手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8 Head；PDF p.1928、1933、1937）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（顳骨分部）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§6 法蘭克福平面）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC6489522/（Reddy 2019：SN 與 FH 參考面）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC4591197/（Choi 2015：anatomical vs machine porion）", "https://radiopaedia.org/articles/orbitomeatal-line", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA，依 DCP 2.0）"]}, "or": {"zh": "眶下點", "en": "orbitale", "abbr": "or", "bilateral": true, "region": "顏面・眼眶", "bones": ["顴骨", "上頷骨"], "definition": "眶下緣（infraorbital margin）上的最低點；法蘭克福平面慣例取左側 orbitale。", "howToFind": "從正面沿眶下緣由內往外找最低點，Skeleton·ID 手冊指出它通常落在眶緣外側半。「最低」會隨頭的擺法改變，所以先粗擺 FH，再在正面與側面視角微調。點在眶緣的骨稜上，不要點進眶內。", "anatomy": "眶的前外側緣與大部分眶下緣由顴骨構成，內側段由上頷骨構成（Moore）。眶底主要是上頷骨，很薄，與上頷竇共用；眶下神經（V2）走眶底的溝與管，從眶下方的眶下孔穿出（Moore；逐字稿 01-02）。", "clinical": "眶緣本身較堅固，直接撞擊時骨折多發生在構成眶緣的三條縫；打到眼球時較薄的眶底可能單獨骨折（blowout fracture）而眶緣完好，眶底骨折會波及上頷竇（Moore）。", "examPoints": [], "pitfalls": "點在眶緣上，不要點進眶內的眶底（protocol.js 已註明）。沒先擺正就找「最低點」，點會沿眶緣滑動。左右都要標，但 FH 只用左側 or（Yuan）。", "relatedMeasurements": ["法蘭克福平面（左右 po＋左 or）", "SN–FH 夾角（平均約 7°，Reddy 2019）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1935–1936、1987、2074、2113）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-02.md（眶下孔）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（專案現行定義與注意事項）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC6489522/（Reddy 2019）"]}, "n": {"zh": "鼻根點", "en": "nasion", "abbr": "n", "bilateral": false, "region": "顏面・鼻", "bones": ["額骨", "鼻骨"], "definition": "額鼻縫（frontonasal suture）與正中矢狀面的交點，也就是額鼻縫與鼻骨間縫（internasal suture）相會處。", "howToFind": "正面看兩眼眶之間的鼻根，開著貼圖找橫走的額鼻縫，取它與正中線的交點；再轉側面確認落在鼻樑的凹陷處。Skeleton·ID 提醒：鼻骨間縫的上端不一定剛好在正中面，以正中面為準。", "anatomy": "額骨與鼻骨在此相接，多數人此處是凹下去的鼻樑（Moore）。後方是額竇：左右額竇位於額骨內外板之間、眉弓與鼻根後方（Moore）。外鼻的鼻背與鼻尖皮膚大多由 V1（infratrochlear n. 與 anterior ethmoidal n. 的 external nasal branch）支配，鼻翼才是 V2（Moore）。", "clinical": "頭影測量用 S（蝶鞍中心）–N 線代表前顱底，是常用的參考線（Reddy 2019）。Yuan 講義：nasion 是量面高的上端點。", "examPoints": [{"text": "上頜神經（V2）及其分支不支配鼻根點（nasion）皮膚（正解 D；上齒槽、硬腭黏膜、上頜竇黏膜都屬 V2）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-8/ANAT-HN-08-8-99-2-Q-aae94a611bfe5869.md（99-2）"}], "pitfalls": "不要把鼻骨間縫下端（rhinion）或鼻骨上的點當成 nasion。Hall 教材寫成「鼻骨相接的最上點」；骨縫歪斜時它和正中面交點可能不同，以正中面為準（Skeleton·ID）。", "relatedMeasurements": ["Martin 5 顱底長（ba–n）", "Martin 48 上面高（n–pr）", "Martin 55 鼻高（n–ns）", "Martin 47 全面高（n–gn，編號未查證）", "S–N 線（頭影測量前顱底）"], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1934、2223、2224）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC6489522/（Reddy 2019）"]}, "g": {"zh": "眉間點", "en": "glabella", "abbr": "g", "bilateral": false, "region": "顏面・眼眶", "bones": ["額骨"], "definition": "額骨正中、兩側眉弓之間、額鼻縫上方最向前突出的點。", "howToFind": "先擺正，從側面看正中輪廓，在 nasion 上方找前額最向前凸的點；再轉正面確認它在兩側眉弓之間的正中線上。它是最大顱長（Martin 1）的前端，常和 op 一起找。", "anatomy": "眉間是兩側眉弓（superciliary arch）之間的平滑區，男性較明顯（Moore）。約 8% 的成人保留額縫殘跡（metopic suture），位置就在眉間正中（Moore）。額竇位於眉弓與鼻根後方的額骨內外板之間，約 7 歲可偵測到；皺眉肌起自眉弓內側端（Moore）。", "clinical": "殘存的額縫在 X 光或 CT 上不要誤判為骨折（Moore）。眉間區是頭骨性別目視判讀的五個特徵之一（另四個是頦隆凸、眶緣、項區、乳突），五項合用對現代樣本正確率 88%（Walker 2008）。", "examPoints": [], "pitfalls": "眉間是正中「最前凸」處，不是鼻根的凹陷。Moore 把眉間同時描述為「兩眉弓之間略凹的平滑區」與「前額最前凸處」，標點取正中最前凸的位置。顱蓋鋸開線可能經過 g 附近，要先檢查（研究筆記 §6）。", "relatedMeasurements": ["Martin 1 最大顱長（g–op）", "顱指數（Martin 8÷Martin 1×100）"], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1934、1965、1978、2224）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "Walker PL. Am J Phys Anthropol 2008;136:39–50（DOI 10.1002/ajpa.20776；摘要經 Europe PMC API 讀取）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§6 顱蓋鋸開線）"]}, "ns": {"zh": "鼻棘點", "en": "nasospinale", "abbr": "ns", "bilateral": false, "region": "顏面・鼻", "bones": ["上頷骨"], "definition": "梨狀孔（piriform aperture）下緣與正中矢狀面的交點；較精確的說法是：切過左右梨狀孔下緣的連線與正中面的交點。", "howToFind": "正面看梨狀孔，在左右下緣最低處拉一條水平切線，取它和正中線的交點；再轉側面確認沒有點到往前突的前鼻棘（anterior nasal spine）尖端。", "anatomy": "梨狀孔是頭骨的前鼻孔，大部分由左右上頷骨圍成，上方是鼻骨，從孔內可看到骨性鼻中隔（Moore）。Moore 用一條大約通過前鼻棘與蝶篩隱窩的斜線劃分鼻黏膜的神經：後下部主要是 V2，前上部是 V1。", "clinical": "鼻高（n–ns）與鼻寬（al–al）組成鼻指數（鼻寬×100÷鼻高；窄鼻 <48、中鼻 48–52.99、寬鼻 ≥53），是人類學描述鼻孔形態的指標（Yuan）。", "examPoints": [], "pitfalls": "不要點在前鼻棘尖端——定義是下緣切線與正中面的交點。梨狀孔下緣左右不對稱或骨緣破損時，用兩側最低點決定切線（CoRA：鼻高量到梨狀孔下緣最低點的平均高度）。", "relatedMeasurements": ["Martin 55 鼻高（n–ns）", "鼻指數（鼻寬×100÷鼻高；Yuan）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.iitg.ac.in/cseweb/vlab/anthropology/Theory_indices.html（IIT Guwahati 人類學虛擬實驗室）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA，依 DCP 2.0）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1935–1936、2223）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003：鼻指數）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（專案現行定義）"]}, "pr": {"zh": "上齒槽前點", "en": "prosthion", "abbr": "pr", "bilateral": false, "region": "顏面・上頷", "bones": ["上頷骨"], "definition": "兩顆上中門齒之間，上頷齒槽突（alveolar process）前緣的正中點。", "howToFind": "正面放大上門齒區，找兩顆上中門齒之間的齒槽骨中隔，取它前緣最靠咬合面的正中點；再轉側面確認點在齒槽骨上，不在牙齒上。", "anatomy": "左右上頷骨在正中以上頷間縫相接，齒槽突含牙窩、支持上顎牙齒（Moore）；IIT 的定義把 pr 放在上頷間縫的齒槽端、兩顆中門齒之間。", "clinical": "拔牙或缺牙後齒槽骨會吸收，全口缺牙會讓垂直面高變小（Moore），所以缺牙頭骨的 pr 不可靠。", "examPoints": [], "pitfalls": "缺牙、缺上中門齒或齒槽吸收的頭骨不要硬標（Skeleton·ID）。Hall 教材量上面高用 alveolare（上中門齒間的骨嵴），與 prosthion 名稱不同，比對資料時要看清楚用的是哪一個。", "relatedMeasurements": ["Martin 48 上面高（n–pr）", "ba–pr 長（CoRA/DCP 2.0；未列 Martin 編號）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://www.iitg.ac.in/cseweb/vlab/anthropology/Theory_indices.html（IIT Guwahati）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936、1959）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA）"]}, "b": {"zh": "前囟點", "en": "bregma", "abbr": "b", "bilateral": false, "region": "顱頂", "bones": ["額骨", "頂骨"], "definition": "矢狀縫與冠狀縫在顱頂正中的交點。", "howToFind": "從正上方看顱頂，開著貼圖沿左右頂骨之間的矢狀縫往前，找它和橫走的冠狀縫的交點。骨縫模糊或已癒合時，依兩條縫的整體走向外推交點（Skeleton·ID）。", "anatomy": "冠狀縫分隔額骨與頂骨，矢狀縫分隔左右頂骨（Moore）。新生兒的前囟位在矢狀縫、冠狀縫與額縫交會處，就是日後的 bregma；前囟最大、呈菱形，18 個月大時已摸不到（Moore；逐字稿同記 18 個月）。顱頂最高點 vertex 在矢狀縫中點附近，不是 bregma（Moore）。成人骨縫約 30–40 歲由內面開始癒合、外面約晚 10 年，通常從 bregma 開始，再依序矢狀縫、冠狀縫、人字縫，個體差異大（Moore）。", "clinical": "嬰兒觸診前囟：凹陷提示脫水，膨出提示顱內壓上升（Moore）。矢狀縫早閉→長而窄的舟狀頭；冠狀縫早閉→塔狀頭（Moore；逐字稿）。112-2 詳解則把冠狀縫早閉寫成短頭（brachycephaly），教材說法不一。", "examPoints": [{"text": "前囟門處頭皮的主要血液供應是眶上動脈（正解 A；升咽、耳後、枕動脈為干擾）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-2/ANAT-HN-08-2-114-1-Q-78bd19e57c9e69c9.md（114-1 考選部官方 醫學（一）第11題）"}, {"text": "出生前提早閉合而造成長楔形舟狀頭（scaphocephaly）的是矢狀縫（正解 D；前囟、後囟、冠狀縫為干擾）", "source": "醫師國考一階_已通過/胚胎學/題目詳解/04_骨骼與肌肉/EMBR-MAIN-09-112-2-Q-ee4284e20b35e255.md（112-2 考選部官方 醫學（一）第36題）"}], "pitfalls": "還有前囟的幼兒頭骨、或骨縫完全癒合的成人頭骨，都無法精確定 b（Skeleton·ID）。b 在顱蓋上，顱蓋鋸開過時，它和顱底點（如 ba）的距離會吃進顱蓋裝回的誤差（protocol.js）。", "relatedMeasurements": ["Martin 17 顱高（ba–b，部分查證）"], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1940–1941、1964、1968、1970）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（骨縫、囟門、顱縫早閉）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（顱蓋注意事項）"]}, "l": {"zh": "人字點", "en": "lambda", "abbr": "l", "bilateral": false, "region": "枕部", "bones": ["頂骨", "枕骨"], "definition": "矢狀縫與人字縫（lambdoid suture）的交點。", "howToFind": "從後面（枕面）看，沿矢狀縫往後，找它和左右兩支人字縫會合的「人」字頂點。有縫間骨時，依矢狀縫與人字縫的主要走向外推交點（Skeleton·ID）。", "anatomy": "人字縫把頂骨、顳骨與枕骨分開（Moore）。新生兒的後囟位在人字縫與矢狀縫交會處，就是日後的 lambda；後囟呈三角形，出生後幾個月開始閉合，1 歲時已摸不到（Moore；逐字稿記 2–3 個月閉合）。縫間骨（wormian bones）常出現在 lambda 或乳突附近（Moore）。", "clinical": "活人身上 lambda 有時可摸到一個凹陷（Moore）。單側冠狀縫或人字縫早閉會使頭顱扭曲、不對稱（plagiocephaly）（Moore）。", "examPoints": [{"text": "造成舟狀頭的是矢狀縫（lambda 與 bregma 之間那條縫）提早閉合（正解 D）；後囟（日後的 lambda）是干擾選項", "source": "醫師國考一階_已通過/胚胎學/題目詳解/04_骨骼與肌肉/EMBR-MAIN-09-112-2-Q-ee4284e20b35e255.md（112-2 考選部官方 醫學（一）第36題）"}], "pitfalls": "縫間骨多時，容易把某塊小骨的角當成 lambda。lambda 在顱蓋上，顱蓋鋸開過時要注意裝回誤差（protocol.js）。", "relatedMeasurements": [], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1938、1941、1965、1970）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（囟門）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（顱蓋注意事項）"]}, "op": {"zh": "顱後點", "en": "opisthocranion", "abbr": "op", "bilateral": false, "region": "枕部", "bones": ["枕骨"], "definition": "從眉間點量起、顱骨正中最後方的點，也就是最大顱長的後端點；不取在枕外隆凸上。", "howToFind": "先擺正，從側面看正中輪廓，找離 g 最遠的枕部點。Yuan 講義說這個點是用儀器（卡尺）決定的，在 3D 上可以用量測工具沿正中線找 g–op 的最大值。Skeleton·ID 指出它幾乎都落在枕骨上鱗（枕外隆凸上方）。", "anatomy": "後腦勺的凸起（occiput）是枕骨鱗部向後的隆起；枕外隆凸位在正中線上，上項線從它向兩側延伸（Moore）。", "clinical": "矢狀縫早閉的舟狀頭長而窄（Moore）。g–op 也是 Giles 1970 頭骨性別判別式的變數之一（Yuan 講義轉引）。", "examPoints": [], "pitfalls": "枕外隆凸特別突出時，最後方的點可能落在隆凸上——Hall、Yuan、IIT 的定義都要排除；Skeleton·ID 則提到偶爾會落在隆凸上，研究要寫明採哪一版。極值點要先擺正；顱蓋鋸開線可能經過 op（研究筆記 §6）。", "relatedMeasurements": ["Martin 1 最大顱長（g–op）", "顱指數（Martin 8÷Martin 1×100）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://www.iitg.ac.in/cseweb/vlab/anthropology/Theory_indices.html（IIT Guwahati）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1937–1938、1970）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§6 顱蓋鋸開線）"]}, "ba": {"zh": "顱底點", "en": "basion", "abbr": "ba", "bilateral": false, "region": "顱底", "bones": ["枕骨"], "definition": "枕骨大孔（foramen magnum）前緣的正中點。", "howToFind": "把頭骨翻到顱底視角，先找枕骨大孔：它大約位在兩側乳突之間、和乳突同高（Moore）。取孔前緣的正中點；顱底的掃描品質常較差，要放大確認骨緣（Skeleton·ID）。", "anatomy": "通過枕骨大孔的有：脊髓（在此接延腦）、腦脊膜、椎動脈、前後脊髓動脈、副神經（CN XI）脊髓根（Moore；逐字稿 01-01）。大孔兩側是枕髁，與寰椎形成寰枕關節（Moore；逐字稿 01-02）。", "clinical": "小腦扁桃體疝經枕骨大孔壓迫延髓，可致猝死（逐字稿 06-01）。ba–o 連線即 McRae line，用來評估顱底凹陷與小腦扁桃體位置；basion 到齒突尖的距離（basion–dens interval）用於診斷寰枕脫位，X 光正常 <12 mm、CT <8.5 mm（Radiopaedia）。", "examPoints": [{"text": "聲音沙啞＋口咽與舌後 1/3 感覺喪失的顱底腫瘤在頸靜脈孔（CN IX、X、XI；正解 C）；枕骨大孔是干擾選項（通過延髓／脊髓、椎動脈、CN XI 脊髓根）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-NEURO-08/ANAT-NEURO-08-112-2-Q-52679b1b964ba8b4.md（112-2 考選部官方 醫學（一）第8題）"}], "pitfalls": "點在大孔「前緣」的正中，不要點到兩側的枕髁上。ba 在顱底、b 在顱蓋，顱蓋鋸開過的標本量 ba–b 會吃進顱蓋裝回的誤差（protocol.js）。", "relatedMeasurements": ["Martin 5 顱底長（ba–n）", "Martin 17 顱高（ba–b，部分查證）", "Martin 7 枕骨大孔長（ba–o，部分查證）", "ba–pr 長（CoRA/DCP 2.0；未列 Martin 編號）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1942、1945）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（後顱窩孔洞）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-02.md（寰枕關節）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/06-01.md（腦疝）", "https://radiopaedia.org/articles/mcrae-line", "https://radiopaedia.org/articles/basion-dens-interval", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA）"]}, "o": {"zh": "枕大孔後點", "en": "opisthion", "abbr": "o", "bilateral": false, "region": "顱底", "bones": ["枕骨"], "definition": "枕骨大孔後緣的正中點。", "howToFind": "顱底視角，先標好 ba，再沿正中線往後越過枕骨大孔，在後緣取正中點。Skeleton·ID 建議點在後緣朝向孔內的那一側邊上，掃描品質差時要放大確認。", "anatomy": "枕外嵴從枕外隆凸往下延伸到枕骨大孔（Moore）。項韌帶從枕外隆凸與枕骨大孔後緣向下，附著到頸椎棘突（Moore）。", "clinical": "McRae line（ba–o）用來評估顱底凹陷（齒突尖正常約在線下 5 mm）與小腦扁桃體是否低於枕骨大孔（Radiopaedia）；小腦扁桃體疝經枕骨大孔壓迫延髓（逐字稿 06-01）。", "examPoints": [{"text": "顱底腫瘤造成聲音沙啞＋舌後 1/3 感覺喪失→頸靜脈孔（正解 C）；枕骨大孔是干擾選項", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-NEURO-08/ANAT-NEURO-08-112-2-Q-52679b1b964ba8b4.md（112-2 考選部官方 醫學（一）第8題）"}], "pitfalls": "不要點到大孔後方的枕外嵴或枕骨鱗部骨面上；掃描破洞時不要硬點（Skeleton·ID：掃描品質明顯影響此區準確度）。", "relatedMeasurements": ["Martin 7 枕骨大孔長（ba–o，部分查證）", "McRae line（ba–o）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e；PDF p.363、1938、1945）", "https://radiopaedia.org/articles/mcrae-line", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/06-01.md（腦疝）"]}, "zy": {"zh": "顴點", "en": "zygion", "abbr": "zy", "bilateral": true, "region": "側面", "bones": ["顴骨", "顳骨"], "definition": "顴弓（zygomatic arch）最外側的點，即顴寬的端點。", "howToFind": "先擺正，從正面或上面看，用垂直於正中面的輔助線找左右顴弓最向外突的點（Skeleton·ID）。Hall、Yuan 都說它是用卡尺量出的極值點，可用量測工具找 zy–zy 的最大距離。", "anatomy": "顴弓由顴骨的顳突與顳骨的顴突相接而成，是顳窩的下界，上緣大約對應大腦半球的下界（Moore）。顳筋膜分兩層附著在顴弓內外面，咬肌附著在顴弓下緣（Moore；逐字稿 03-01：咬肌 顴弓→下頜角／支）。", "clinical": "顴弓—眶外緣是把臼齒區咬合力傳到額骨、顳骨的主要支柱之一；Le Fort III 骨折同時斷顴弓（Moore）。顏面神經顳支跨過顴弓，支配額肌與眼輪匝肌上部（Moore）。zy–zy 也是 Giles 1970 性別判別式的變數（Yuan 轉引）。", "examPoints": [], "pitfalls": "要先擺正再找極值；顴弓細、容易斷，破損時不要硬點。不要和 eu（腦顱最寬處）混淆。", "relatedMeasurements": ["Martin 45 顴寬（zy–zy）", "面指數（全面高×100÷顴寬；Yuan）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936、1953、1958、1995、2135）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/03-01.md（咀嚼肌）"]}, "eu": {"zh": "顱側點", "en": "euryon", "abbr": "eu", "bilateral": true, "region": "側面", "bones": ["頂骨"], "definition": "腦顱（braincase）左右最寬處的兩個端點，即最大顱寬的端點，用卡尺量出來決定。", "howToFind": "先擺正（FH＋正中面），從上面或後面看，找腦顱左右最寬的一對點；Hall 教材的卡尺放在頂骨後部最寬處。可以用量測工具在兩側來回試，找 eu–eu 的最大值。", "anatomy": "顱頂由額骨鱗部、左右頂骨與枕骨鱗部構成，從上面看大致呈卵圓形，在頂結節（parietal eminence）處向後外側變寬（Moore）。", "clinical": "顱指數（Martin 8÷Martin 1×100）描述頭形：長顱、中顱、短顱等（研究筆記、Yuan）。矢狀縫早閉的舟狀頭長而窄（Moore）。eu–eu 也是 Giles 1970 性別判別式的變數（Yuan 轉引）。", "examPoints": [], "pitfalls": "不能落在顴弓上（那是 zy）。CoRA（依 DCP 2.0）量最大顱寬時排除顳下線處。極值點要先擺正；顱蓋鋸開線可能經過 eu（研究筆記 §6）。", "relatedMeasurements": ["Martin 8 最大顱寬（eu–eu）", "顱指數（Martin 8÷Martin 1×100）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.iitg.ac.in/cseweb/vlab/anthropology/Theory_indices.html（IIT Guwahati）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA，依 DCP 2.0）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1939–1940、1970）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§6 顱指數、鋸開線）"]}, "ft": {"zh": "額顳點", "en": "frontotemporale", "abbr": "ft", "bilateral": true, "region": "側面", "bones": ["額骨"], "definition": "額骨上顳線（temporal line）最向前內側的點；左右 ft 之間是最小額寬。", "howToFind": "正面看眼眶外上方、額骨轉向顳窩的地方，找顳線往前內彎到最內側（左右距離最窄）的位置，再轉側面確認點在顳線上（Skeleton·ID）。開著貼圖時，顳線這條肌肉附著稜線比較容易看。", "anatomy": "顳窩的上、後界是上、下顳線，前界是額骨與顴骨，下界是顴弓（Moore）。顳筋膜附著在上顳線，顳肌起自顳窩底與顳筋膜（Moore）；顳肌是閉口、後縮的咀嚼肌，由 V3 支配（逐字稿 03-01）。", "clinical": "", "examPoints": [], "pitfalls": "顳線在骨面上是低平的稜線，塑膠模型上可能不明顯。上、下顳線要分清楚，兩側用同一條（Skeleton·ID 手冊取下顳線）。顱蓋鋸開線可能經過 ft（研究筆記 §6）。", "relatedMeasurements": ["Martin 9 最小額寬（ft–ft）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936、2133、2135）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/03-01.md（咀嚼肌）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§6 顱蓋鋸開線）"]}, "ms": {"zh": "乳突點", "en": "mastoidale", "abbr": "ms", "bilateral": true, "region": "側面", "bones": ["顳骨（乳突部）"], "definition": "乳突（mastoid process）最下方的尖端（傳統定義）。", "howToFind": "先擺正（FH），從側面看外耳道後下方的乳突，取它最低的尖點；再從後面或顱底視角確認。Moore：枕骨大孔大約在兩側乳突之間、和乳突同高，可以互相對照。", "anatomy": "乳突屬顳骨乳突部，內含氣室（逐字稿 01-01）；位在外耳道開口後下方，前內側是莖突（Moore）。胸鎖乳突肌止於乳突（逐字稿 03-01）。乳突表面的皮膚由耳大神經（C2–C3）支配（Moore）。", "clinical": "新生兒沒有乳突，顏面神經出莖乳孔時很表淺，難產時的產鉗或耳後切口可能傷到它；乳突在出生後第 1 年隨胸鎖乳突肌發育、拉扯而逐漸形成（Moore）。乳突是頭骨性別目視判讀的五個特徵之一（Walker 2008），po–ms 也用在 Giles 1970 性別判別式（Yuan 轉引）。", "examPoints": [{"text": "顏面神經（CN VII）經莖乳孔（stylomastoid foramen）出顱（正解 B；眼動脈走視神經管、V2 走圓孔、CN VIII 走內耳道）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-2/ANAT-HN-08-2-106-2-Q-c209f248640787ff.md（106-2）"}], "pitfalls": "定義不一：Skeleton·ID 手冊（定義引 Caple & Stephan）寫成「乳突切跡（mastoid notch）最後方的點」，和「乳突最低點」（Yuan、protocol.js）不是同一點，研究要寫明採哪一版。沒擺正時「最低點」會偏；乳突尖破損時不要硬點。", "relatedMeasurements": ["乳突長 po–ms（Giles 1970 判別式用；CoRA 稱 mastoid height；未列 Martin 編號）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e；PDF p.1937、1942、1964、2303）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（顳骨乳突部）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/03-01.md（胸鎖乳突肌）", "Walker PL. Am J Phys Anthropol 2008;136:39–50（DOI 10.1002/ajpa.20776；摘要經 Europe PMC API 讀取）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（專案現行定義）"]}, "d": {"zh": "淚點", "en": "dacryon", "abbr": "d", "bilateral": true, "region": "顏面・眼眶", "bones": ["額骨", "淚骨", "上頷骨"], "definition": "眼眶內側緣上，淚上頷縫（lacrimomaxillary suture）與額骨相交的點，也就是額骨、淚骨、上頷骨三骨交會處。", "howToFind": "正面放大眼眶內側壁前部的淚骨，找淚骨與上頷骨之間的縫往上碰到額骨的點，這裡常有一個小孔可參考。縫看不清楚時，對準淚囊窩的頂端往上延伸到額骨（Skeleton·ID）。", "anatomy": "眼眶內側壁由篩骨眶板、上頷骨額突、淚骨與蝶骨構成，大多薄如紙；前方有淚溝與淚囊窩（Moore）。淚囊經鼻淚管把淚液排到下鼻道（Moore）。淚「腺」則在眼眶外上方的淚腺窩（Moore）。", "clinical": "內側壁很薄，眼球受鈍擊時可能發生 blowout fracture，內側壁骨折會波及篩竇與蝶竇（Moore）。", "examPoints": [{"text": "淚腺窩在額骨、眼眶外上方，不在眶內側壁；「淚腺窩位於眼眶內側壁」是最不恰當的敘述（正解 B）。內側壁的是淚囊窩", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-4/ANAT-HN-08-4-115-1-Q-ce310a7c65ed5a61.md（115-1 考選部官方 醫學（一）第8題）"}, {"text": "眼眶內側壁的鼻淚管通到下鼻道（正解 D）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-4/ANAT-HN-08-4-111-1-Q-537d3a5a6ea0946e.md（111-1）"}], "pitfalls": "不要點在淚囊窩底或眶內深處；淚腺窩（外上）和淚囊窩（內側）別搞混。眶寬的內側起點各書不同：Martin 51a 從 d 量起，研究筆記記另有從 maxillofrontale 起算的版本（未驗證），比對資料要看起點。", "relatedMeasurements": ["Martin 51a 眶寬（d–ec）", "Martin 52 眶高（與眶寬垂直）", "眶指數（眶高×100÷眶寬；Yuan）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.2074、2079、2113）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（Martin 編號查證表）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003：眶指數）"]}, "ec": {"zh": "眶外緣點", "en": "ectoconchion", "abbr": "ec", "bilateral": true, "region": "顏面・眼眶", "bones": ["顴骨"], "definition": "眶外側緣與「橫向平分眼眶的線」的交點，是眶寬的外側端點。", "howToFind": "正面看眼眶，畫一條水平線把眼眶上下平分，這條線和眶外緣的交點就是 ec（Skeleton·ID：水平線平分眼眶、垂直線標外緣）。通常和 d 一起標，因為眶寬 d–ec 由這兩點決定。", "anatomy": "眶的前外側緣由顴骨構成；眶外側壁由顴骨額突與蝶骨大翼構成，是四壁中最厚、最強的一面（Moore）。", "clinical": "顴弓—眶外緣是傳遞咬合力的主要支柱之一；Le Fort III 骨折經過額顴縫（Moore）。直接撞擊眶緣時，骨折多在構成眶緣的骨縫（Moore）。", "examPoints": [], "pitfalls": "Hall 教材把 ectoconchion 寫成「額骨與顴骨的交會處、在內側面（on the medial aspect）」，和「平分線與外緣的交點」不是同一點，研究要寫明採用哪一版。平分線的高低會直接影響點位，先確認眶上、下緣再畫線。", "relatedMeasurements": ["Martin 51a 眶寬（d–ec）", "Martin 52 眶高", "眶指數（眶高×100÷眶寬；Yuan）"], "sources": ["https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA：orbital breadth d–ec）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1935、1953、1958、2074、2113）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（專案現行定義）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）"]}, "al": {"zh": "梨狀孔側點", "en": "alare", "abbr": "al", "bilateral": true, "region": "顏面・鼻", "bones": ["上頷骨"], "definition": "梨狀孔（鼻孔的骨性開口）邊緣最外側的點；左右 al 之間是鼻寬。", "howToFind": "正面放大梨狀孔，用垂直輔助線貼住左右最外側的骨緣，再用水平線確認兩點在同一橫切面，最後從側面確認（Skeleton·ID）。也可以用量測工具找 al–al 的最大值（Hall：卡尺量最寬處）。", "anatomy": "梨狀孔位在鼻骨下方，大部分由上頷骨圍成（Moore）。外鼻軟組織的鼻翼皮膚由眶下神經鼻支（V2）支配，和鼻背、鼻尖的 V1 不同（Moore）。", "clinical": "鼻寬與鼻高組成鼻指數（鼻寬×100÷鼻高；窄鼻 <48、中鼻 48–52.99、寬鼻 ≥53），是人類學描述鼻孔形態的指標（Yuan）。", "examPoints": [], "pitfalls": "骨性 alare 在梨狀孔骨緣上，不是軟組織的鼻翼；臉部照片的點名常借用顱骨點名，意思已經不同（Caple & Stephan 2016 摘要）。鼻區掃描品質差時可能無法定位（Skeleton·ID）。", "relatedMeasurements": ["Martin 54 鼻寬（al–al）", "鼻指數（鼻寬×100÷鼻高；Yuan）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1935–1936、2223）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003：鼻指數）", "Caple J, Stephan CN. Int J Legal Med 2016;130:863–879（DOI 10.1007/s00414-015-1292-1；僅讀摘要，經 Europe PMC API）"]}, "id": {"zh": "下齒槽前點", "en": "infradentale", "abbr": "id", "bilateral": false, "region": "下頷", "bones": ["下頷骨"], "definition": "兩顆下中門齒之間齒槽中隔的頂端（前面的正中點）。", "howToFind": "正面放大下門齒區，找兩顆下中門齒之間的齒槽骨中隔，取它最上端的前面正中點；再轉側面確認點在骨上、不在牙上（Skeleton·ID）。", "anatomy": "下頷骨的齒槽部支持下頷牙（Moore）。左右下頷在正中以下頷聯合相接，出生後第 1 年開始癒合、第 2 年底前完成（Moore）。", "clinical": "拔牙後下頷齒槽部的骨會吸收，頦孔會逐漸靠近下頷體上緣（Moore），所以缺牙頭骨的 id 不可靠。", "examPoints": [], "pitfalls": "缺牙或齒槽吸收的頭骨不要標（Skeleton·ID）。教學模型的下頷常以彈簧連接，跨上下頷的量測受咬合位置影響（protocol.js）。", "relatedMeasurements": ["頦高 id–gn（CoRA/DCP 2.0；未列 Martin 編號）"], "sources": ["https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936、1959、1966）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（下頷注意事項）"]}, "pg": {"zh": "頦前點", "en": "pogonion", "abbr": "pg", "bilateral": false, "region": "下頷", "bones": ["下頷骨"], "definition": "頦隆凸（mental protuberance）正中最向前突出的點。", "howToFind": "先擺正（FH），從側面找下巴輪廓最向前的點，再轉正面把點移到正中線上（Skeleton·ID）。頭一前傾或後仰，「最前點」就會上下滑動，所以一定要先擺正。", "anatomy": "頦隆凸是下頷聯合下方的三角形骨隆起，構成下巴的突出；下頷聯合是嬰兒左右下頷癒合的地方，出生後第 1 年開始癒合、第 2 年底前完成（Moore）。", "clinical": "頦隆凸（mental eminence）是頭骨性別目視判讀的五個特徵之一（Walker 2008）。", "examPoints": [], "pitfalls": "沒擺正就找最前點。教學模型的下頷常以彈簧連接，下頷位置會改變它和上頷、顱骨點的相對關係（protocol.js）。", "relatedMeasurements": ["gnathion（取 pg 與 me 的中點時，依賴 pg 的位置）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://nobellicense.nobelbiocare.com/Help/d3d046fb-52e8-4b33-9f51-d3fd98ca3ed4/2.0/EN/3D_cephalometric_hard_tissue_landmarks.htm（3D 頭影測量硬組織點定義）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936、1966）", "Walker PL. Am J Phys Anthropol 2008;136:39–50（DOI 10.1002/ajpa.20776；摘要經 Europe PMC API 讀取）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（下頷注意事項）"]}, "me": {"zh": "頦下點", "en": "menton", "abbr": "me", "bilateral": false, "region": "下頷", "bones": ["下頷骨"], "definition": "下頷聯合（頦部）正中最低的點。", "howToFind": "先擺正，在正面視角確認正中線，再沿正中線往下找下巴下緣的最低點（Skeleton·ID 用正面視角）。轉側面檢查點是否落在下頷聯合的下緣上。", "anatomy": "位在下頷聯合的正中下緣；頦隆凸就在下頷聯合下方（Moore）。", "clinical": "", "examPoints": [], "pitfalls": "下巴下緣常有凹裂，正中最低點不一定是下頷真正的最低處（Skeleton·ID）。沒擺正時最低點會偏；下頷以彈簧連接的模型要注意咬合位置（protocol.js）。", "relatedMeasurements": ["gnathion（取 pg 與 me 的中點時，依賴 me 的位置）"], "sources": ["https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://nobellicense.nobelbiocare.com/Help/d3d046fb-52e8-4b33-9f51-d3fd98ca3ed4/2.0/EN/3D_cephalometric_hard_tissue_landmarks.htm（3D 頭影測量硬組織點定義）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（下頷注意事項）"]}, "gn": {"zh": "頦頂點", "en": "gnathion", "abbr": "gn", "bilateral": false, "region": "下頷", "bones": ["下頷骨"], "definition": "頦部正中、pogonion 與 menton 之間的中點（Skeleton·ID 手冊版，標註器採用）；另有教材定義為下頷體下緣頦部的正中點。", "howToFind": "先標好 pg 與 me，再在兩點之間的正中輪廓上取中點（Skeleton·ID：先定 pg、me 當參考）。如果研究採用 Hall 的定義，則改取頦部下頷體下緣的正中點，並在紀錄中寫明。", "anatomy": "位在頦隆凸前下方的輪廓上；頦隆凸是下頷聯合下方的三角形隆起（Moore）。", "clinical": "", "examPoints": [], "pitfalls": "至少三種定義：pg–me 中點（Skeleton·ID；protocol.js 註明引 Caple & Stephan）、頦部下頷體下緣的正中點（Hall）、下頷緣最前且最低的正中點（Yuan）。研究要寫明採哪一版。Hall 量全面高（n–gn）時要讓牙齒咬合；下頷以彈簧連接的模型尤其要注意（protocol.js）。", "relatedMeasurements": ["Martin 47 全面高（n–gn，編號未查證）", "頦高 id–gn（CoRA/DCP 2.0；未列 Martin 編號）"], "sources": ["https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（gnathion 兩種定義）", "https://docs.coracore.org/en/latest/forensics-anthro-guide/measurements/（CoRA）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；PDF p.1936）"]}, "go": {"zh": "下頷角點", "en": "gonion", "abbr": "go", "bilateral": true, "region": "下頷", "bones": ["下頷骨"], "definition": "下頷角圓弧上，平分「下頷枝後緣切線」與「下頷體下緣切線」夾角的點。", "howToFind": "側面看下頷，沿下頷枝後緣與下頷體下緣各畫一條切線，兩線夾角的角平分線和下頷角圓弧的交點就是 go。角不明顯時，取下頷枝與下頷體轉折處曲度最大的點（Skeleton·ID）。", "anatomy": "下頷骨分水平的下頷體與垂直的下頷枝，兩者轉角就是下頷角（Moore）。咬肌由顴弓止於下頜角／下頜支，內翼肌止於下頜角內側（逐字稿 03-01）。腮腺的尖端在下頷角後方（Moore）。", "clinical": "下頷角皮膚由耳大神經（C2–C3，頸叢）支配而非三叉神經，所以三叉神經全損時這裡仍有感覺（Moore）。下頷角骨折多為斜行，可能經過第三大臼齒的齒槽（Moore）。約 20% 的人顏面神經下頷緣支走在下頷角下方（Moore）。", "examPoints": [{"text": "下頷骨角皮膚痛覺喪失→耳大神經（great auricular n.，C2–C3）受損（正解 B；頰神經、頦神經屬 V3，枕小神經管耳後）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-2/ANAT-HN-08-2-114-2-Q-bf46884c30f8ef71.md（114-2 考選部官方 醫學（一）第12題）"}, {"text": "胸鎖乳突肌上 1/3 撕裂傷後下頜骨角皮膚感覺喪失→耳大神經（正解 D）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-09-1/ANAT-HN-09-1-107-1-Q-73d41767d22dd328.md（107-1）"}, {"text": "TMJ 題：「蝶骨下頜韌帶附著在下頜角」是錯誤選項（詳解：它止於下頜小舌；往下頜角的是莖突下頜韌帶）；正解 C 翼外肌使下頜前引", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-6/ANAT-HN-08-6-106-1-Q-0ed7c7f05d813676.md（106-1）"}], "pitfalls": "下頷角圓鈍時切線不好畫，要記錄取點方式；左右都要標。教學模型的下頷以彈簧連接，張口程度會改變 go 和顱骨點的關係（protocol.js）。", "relatedMeasurements": ["Martin 66 下頷角寬（go–go）"], "sources": ["https://nobellicense.nobelbiocare.com/Help/d3d046fb-52e8-4b33-9f51-d3fd98ca3ed4/2.0/EN/3D_cephalometric_hard_tissue_landmarks.htm（3D 頭影測量硬組織點定義）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8–9；PDF p.1936、1959、1995、2013、2019、2130、2303）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/03-01.md（咀嚼肌）", "頭骨3D標註_大體老師延伸/標註器/src/protocol.js（下頷注意事項）"]}, "pt": {"zh": "翼點", "en": "pterion", "abbr": "pt", "bilateral": true, "region": "側面", "bones": ["額骨", "頂骨", "顳骨鱗部", "蝶骨大翼"], "definition": "顳窩前部，額骨、頂骨、顳骨鱗部與蝶骨大翼四骨交會處，通常呈 H 形骨縫。", "howToFind": "側面看顳窩前部，約在顴弓中點上方 3–4 cm；體表定位是顴弓上方兩指寬、顴骨額突後方一拇指寬（Moore）。模型尺寸還沒校正時公分數不能直接用（iPhone 試掃模型約大 6 倍），改用顴弓、顴骨額突當參考，開著貼圖找四塊骨頭交會的縫。", "anatomy": "翼點的骨頭薄，內面有中腦膜動脈額（前）支走在顱骨側壁內面的溝裡（Moore）。中腦膜動脈是上頷動脈的分支，經棘孔入顱，在蝶骨大翼上分前後支，額支往上到翼點再轉向頭頂（Moore；逐字稿 01-01、06-01）。嬰兒期這裡是前外側囟（蝶囟），在嬰兒期閉合（逐字稿 01-01；Moore）。", "clinical": "側頭部重擊（例如拳擊）可使翼點薄骨骨折，撕裂跨過翼點的中腦膜動脈或靜脈額支，形成硬腦膜外血腫壓迫大腦皮質，未治療可在數小時內致死（Moore）；典型病程有清醒期（lucid interval）（98-1 詳解）。", "examPoints": [{"text": "頭部外側近翼點處撞擊，數小時後硬腦膜外血腫→腦膜中動脈破裂（正解 B；硬腦膜靜脈竇、ACA、PCA 為干擾）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-3/ANAT-HN-08-3-113-1-Q-e20903eb259606fd.md（113-1 考選部官方 醫學（一）第13題）"}, {"text": "外傷後短暫昏迷→清醒期（lucid interval）→深度昏迷＝硬膜上（外）出血（正解 A）；詳解指出典型機轉是翼點附近骨折撕裂中腦膜動脈", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-3/ANAT-HN-08-3-98-1-Q-404af97b32d024c0.md（98-1）"}, {"text": "孔洞與通過血管名稱不同的是棘孔：通過中腦膜動靜脈（正解 A）", "source": "醫師國考一階_已通過/解剖學/題目詳解/ANAT-HN-08-1/ANAT-HN-08-1-113-2-Q-96c7c2086a522309.md（113-2 考選部官方 醫學（一）第10題）"}], "pitfalls": "骨縫型態有變異：通常是 H 形，較少數是額骨直接接顳骨，有時四骨交於一點（Moore）。H 形時取哪一點各研究做法不一（未驗證），要自訂規則並寫明。它是骨縫交點，關掉貼圖幾乎找不到（研究筆記 §7 引 Toneva 2020）。", "relatedMeasurements": [], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1932、1936–1937、1965、2032、2037）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（翼點、囟門、棘孔）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/06-01.md（腦膜血管、硬腦膜外出血）", "頭骨3D標註_大體老師延伸/頭骨3D標註.md（試掃模型尺寸約大 6 倍）", "頭骨3D標註_大體老師延伸/研究_前人做法與可用工具.md（§7 貼圖與骨縫點精度）"]}, "ast": {"zh": "星點", "en": "asterion", "abbr": "ast", "bilateral": true, "region": "側面", "bones": ["頂骨", "枕骨", "顳骨（乳突部）"], "definition": "頂乳突縫、枕乳突縫與人字縫三縫交會處，也就是頂骨、枕骨、顳骨的交界點。", "howToFind": "從後外側（枕面加側面）看乳突的後上方，沿人字縫往外下走，找它和頂乳突縫、枕乳突縫會合的點（Skeleton·ID）。有縫間骨或骨縫不清時，把人字縫延長，取各交點之間的中間位置（Skeleton·ID）。", "anatomy": "三條縫交會、形如星芒（Moore）。嬰兒期這裡是後外側囟（乳突囟），在嬰兒期閉合（逐字稿 01-01；Moore）。縫間骨常出現在乳突附近（Moore）。", "clinical": "傳統上被當作顱底手術鑽孔（keyhole）的體表標記，但骨縫常不易辨認，直接在星點鑽孔可能傷到靜脈竇（Li 2020）；有作者認為它較適合用來估計橫竇外側的位置，而不是當鑽孔點（Jurgaitis 2024 轉述 Hall 等人）。", "examPoints": [], "pitfalls": "縫間骨多時容易點錯；三條縫任一條不清楚，點就會偏（Li 2020 也指出星點常難辨認）。左右都要標。", "relatedMeasurements": [], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e Ch.8；Table 8.1 PDF p.1935；p.1938、1965）", "醫師國考一階_已通過/解剖學/趙俊彥解剖逐字稿/01-01.md（星點、囟門）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v5（Skeleton·ID 手冊：雙側點）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC7099776/（Li 2020 BMC Neurol：mastoid notch 與橫竇–乙狀竇交界）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC11135237/（Jurgaitis 2024 Cureus：橫竇–乙狀竇交界的體表標記）"]}, "i": {"zh": "枕外隆凸點", "en": "inion", "abbr": "i", "bilateral": false, "region": "枕部", "bones": ["枕骨"], "definition": "枕外隆凸（external occipital protuberance）最突出的點（Moore）；Skeleton·ID 手冊則定在左右上項線頂端之間、隆凸的基部。", "howToFind": "從側面找枕部正中最向後突的枕外隆凸，再轉後面確認在正中線上；上項線從它向兩側延伸（Moore）。依採用的定義取隆凸尖端（Moore）或基部（Skeleton·ID），同一研究要一致。", "anatomy": "枕外隆凸在正中線通常容易摸到，但有時（尤其女性）不明顯（Moore）。上項線是頸部的上界；枕外嵴從隆凸往下延伸到枕骨大孔；項韌帶附著在枕外隆凸與枕骨大孔後緣（Moore）。隆凸下方深處可摸到 C2 棘突（Moore）。", "clinical": "上項線與枕外隆凸不能準確定位橫竇（Jurgaitis 2024）。項區（nuchal area）是頭骨性別目視判讀的五個特徵之一（Walker 2008）。", "examPoints": [], "pitfalls": "尖端 vs 基部兩種定義（Moore vs Skeleton·ID）。不要和 op 混用：op 的定義要避開枕外隆凸（Hall、Yuan）。隆凸不明顯時不要硬點。", "relatedMeasurements": ["Martin 1 最大顱長（g–op；op 不取在枕外隆凸上）"], "sources": ["醫師國考一階_已通過/解剖學/原文書/Moore Clinically Oriented Anatomy.pdf（9e；Table 8.1 PDF p.1935；p.319、363、1938）", "https://3d-craneometric-landmarks.manual.skeleton-id.com/en/v4（Skeleton·ID 手冊：正中點）", "https://med.libretexts.org/Learning_Objects/Laboratories/Introduction_to_Human_Osteology_(Hall_et_al.)/02:_Crania/2.04:_Landmarks_and_Measurements_of_the_Skull（Hall et al.）", "https://www.columbia.edu/itc/hs/medical/humanAnatomy/yuan/craniologyISlides.pdf（Yuan 2003）", "https://pmc.ncbi.nlm.nih.gov/articles/PMC11135237/（Jurgaitis 2024 Cureus）", "Walker PL. Am J Phys Anthropol 2008;136:39–50（DOI 10.1002/ajpa.20776；摘要經 Europe PMC API 讀取）"]}};
+
+// ===== learn.js =====
+// 學習模式：看「標好的點」＋解剖講解，只讀不寫。
+// 講解來源依序嘗試 EXPLAINERS：內建頭骨講解（SKULL_KB，build 時從 content/*.json 組進來）→ 標註者在標註頁寫的說明。
+// 預留 API：serve.py 設了 SKULL_EXPLAIN_API 時，卡片底部會多一個「延伸說明」按鈕（POST 到那個網址）。
+const lesson = { model: null, libraryModel: null, doc: null, rows: null, defs: [], selected: '', config: { explainApi: '' }, labels: true, mode: 'lit', pending: {} };
+const LAST_LESSON_KEY = 'skull-learn:last-lesson';
+const REGION_ORDER = ['顏面・眼眶', '顏面・鼻', '顏面・上頷', '顱頂', '枕部', '顱底', '側面', '下頷', '自訂構造'];
+const SIDE_TEXT = { L: '左側', R: '右側', M: '中線' };
+
+const baseCode = code => String(code).replace(/_(L|R)$/, '');
+const kbOf = definition => SKULL_KB[baseCode(definition.code)] || null;
+const regionOf = definition => kbOf(definition)?.region || '自訂構造';
+const EXPLAINERS = [
+  definition => { const kb = kbOf(definition); return kb ? { source: 'kb', ...kb } : null; },
+  definition => (definition.teach || definition.desc) ? { source: 'annotation' } : null,
+];
+function explain(definition) {
+  for (const provider of EXPLAINERS) { const result = provider(definition); if (result) return result; }
+  return null;
+}
+
+// ---------- 開教材 ----------
+async function openLesson(buffer, fileName, doc, libraryModel = null) {
+  setLoading(true, '正在讀取教材…', fileName);
+  try {
+    const previous = lesson.model, model = await loadModelBuffer(buffer, fileName);
+    if (doc.modelGeometryHash && doc.modelGeometryHash !== model.hash) throw new Error('這份標註不是在這個模型上標的（網格指紋不同）');
+    disposeModel(previous);
+    setMaterialMode(model, lesson.mode, 1);
+    const rows = Array.isArray(doc.transform?.matrix) && doc.transform.matrix.length === 4 ? doc.transform.matrix : makeTransform(1, null);
+    setModelTransform(rows);
+    const defs = (doc.landmarkDefinitions || []).filter(definition => doc.landmarks?.[definition.code] && markModelPosition(model, doc.landmarks[definition.code]));
+    Object.assign(lesson, { model, libraryModel, doc, rows, defs, selected: '', pending: {} });
+    frameModel(false);
+    setLoading(false);
+    renderLesson();
+    toast(`已開啟教材「${doc.name || fileName}」：${defs.length} 個標記點`);
+  } catch (error) { failLoading('教材讀取失敗', error?.message || String(error)); }
+}
+
+async function openLibraryLesson(model, setName) {
+  const name = setName || model.landmarkSets[0]?.name;
+  if (!name) return toast('這個模型還沒有標好的教材，先到標註頁標好並存檔', 'warn');
+  setLoading(true, `正在讀取「${model.title}」…`, `${model.fileName}（${model.sizeMB} MB）`);
+  try {
+    const [buffer, doc] = await Promise.all([fetchModelBuffer(model), fetchLandmarkSet(model, name)]);
+    doc.name = name; // 顯示檔名：換檔（同名覆蓋）就是換教材，名稱跟模型庫一致
+    try { localStorage.setItem(LAST_LESSON_KEY, JSON.stringify({ id: model.id, setName: name })); } catch { /* 記不住也沒關係 */ }
+    await openLesson(buffer, model.fileName, doc, model);
+  } catch (error) { failLoading('教材讀取失敗', error?.message || String(error)); }
+}
+
+// 直接開檔（file://）：模型與標註 JSON 兩個都到齊才開
+async function takeFiles(files) {
+  for (const file of files) {
+    if (/\.(glb|gltf)$/i.test(file.name)) lesson.pending.model = { buffer: await file.arrayBuffer(), fileName: file.name };
+    else if (/\.json$/i.test(file.name)) {
+      try { lesson.pending.doc = JSON.parse(await file.text()); lesson.pending.doc.name ||= file.name.replace(/\.json$/i, ''); }
+      catch { return toast(`${file.name} 不是合法的 JSON`, 'bad'); }
+    }
+  }
+  const { model, doc } = lesson.pending;
+  if (model && doc) return openLesson(model.buffer, model.fileName, doc);
+  toast(model ? '模型到了，再開一份標註 JSON' : doc ? '標註到了，再開對應的 .glb 模型' : '只接受 .glb 與 .json', model || doc ? 'ok' : 'bad');
+}
+
+// ---------- 場景 ----------
+function pinPosition(code) {
+  const p = markModelPosition(lesson.model, lesson.doc.landmarks[code]);
+  return p ? applyTransform(lesson.rows, p) : null;
+}
+function drawLessonPins() {
+  const pins = lesson.defs.map(definition => ({ code: definition.code, position: pinPosition(definition.code),
+    normal: markOutputNormal(lesson.model, lesson.doc.landmarks[definition.code], lesson.rows), active: definition.code === lesson.selected }));
+  drawPins(pins.filter(pin => pin.position), sceneRadius * 0.014, lesson.labels);
+  const lines = [];
+  for (const measurement of relatedMeasurements(lesson.selected)) {
+    const points = measurement.points.map(pinPosition);
+    if (!points.every(Boolean)) continue;
+    lines.push({ from: points[0], to: points[1], kind: 'measure' });
+    if (measurement.type === 'angle') lines.push({ from: points[1], to: points[2], kind: 'measure' });
+  }
+  drawLines(lines);
+}
+function relatedMeasurements(code) {
+  if (!code) return [];
+  const values = new Map((lesson.doc.measurements || []).map(item => [item.code, item]));
+  return (lesson.doc.measurementDefinitions || []).filter(item => item.points?.includes(code)).map(item => ({ ...item, value: values.get(item.code)?.value, unit: values.get(item.code)?.unit }));
+}
+
+function select(code, fly = true) {
+  lesson.selected = code;
+  drawLessonPins(); renderList(); renderCard();
+  const position = code && pinPosition(code);
+  if (fly && position) flyTo(position, markOutputNormal(lesson.model, lesson.doc.landmarks[code], lesson.rows));
+}
+function step(direction) {
+  const order = orderedDefs();
+  if (!order.length) return;
+  const index = order.findIndex(item => item.code === lesson.selected);
+  select(order[(index + direction + order.length) % order.length].code);
+}
+function orderedDefs() {
+  return [...lesson.defs].sort((a, b) => REGION_ORDER.indexOf(regionOf(a)) - REGION_ORDER.indexOf(regionOf(b)));
+}
+
+// ---------- 畫面 ----------
+function renderLesson() {
+  const { doc, libraryModel, model } = lesson;
+  $('modelName').textContent = model ? `${libraryModel?.title || model.fileName} · 教材「${doc.name || ''}」` : '尚未選擇教材';
+  $('sensitiveBanner').classList.toggle('hidden', !libraryModel?.sensitive);
+  $('dropzone').classList.toggle('hidden', !!model);
+  $('frameBadge').classList.toggle('hidden', !model);
+  if (model) $('frameBadge').innerHTML = `<b>${doc.transform?.alignment?.enabled ? '法蘭克福方向' : '原始方向'}</b><span>${doc.units === 'mm' ? 'mm（已校正比例）' : '未校正比例'}</span>`;
+  $('lessonHead').innerHTML = model ? `<strong>${escapeHtml(doc.name || '教材')}</strong><small>${lesson.defs.length} 個點${doc.annotator ? ` · 標註者 ${escapeHtml(doc.annotator)}` : ''}${doc.exportedAt ? ` · ${escapeHtml(formatSavedAt(doc.exportedAt))}` : ''}</small>` : '<strong>學習模式</strong><small>選一份標好的教材開始</small>';
+  drawLessonPins(); renderList(); renderCard();
+}
+
+function renderList() {
+  const groups = new Map();
+  for (const definition of orderedDefs()) {
+    const region = regionOf(definition);
+    if (!groups.has(region)) groups.set(region, []);
+    groups.get(region).push(definition);
+  }
+  $('learnList').innerHTML = [...groups].map(([region, items]) => `<div class="regionGroup"><h4>${escapeHtml(region)}</h4><div class="setChips">${items.map(definition => {
+    const kb = kbOf(definition), title = kb ? `${kb.zh}${definition.side && definition.side !== 'M' ? `（${definition.side === 'L' ? '左' : '右'}）` : ''}` : (definition.name || definition.code);
+    return `<button class="chip${definition.code === lesson.selected ? ' activeChip' : ''}" data-code="${escapeHtml(definition.code)}">${escapeHtml(title)}</button>`;
+  }).join('')}</div></div>`).join('') || '<p class="note">這份教材沒有可以顯示的點。</p>';
+  $('learnList').querySelectorAll('[data-code]').forEach(button => button.onclick = () => select(button.dataset.code));
+}
+
+const section = (title, body) => body ? `<section><h4>${title}</h4>${body}</section>` : '';
+const paragraph = text => text ? `<p>${escapeHtml(text)}</p>` : '';
+
+function renderCard() {
+  const card = $('learnCard'), definition = lesson.defs.find(item => item.code === lesson.selected);
+  if (!lesson.model) { card.innerHTML = `<p class="note">${hasCatalog() ? '按左上「選擇教材」挑一份標好的模型。' : '雙擊「啟動標註器.bat」可以用模型庫；或按「選擇教材」開 .glb，再按「開啟標註 JSON」。'}</p>`; return; }
+  if (!definition) { card.innerHTML = overviewHtml(); return; }
+  const info = explain(definition) || {}, kb = info.source === 'kb' ? info : null;
+  const side = SIDE_TEXT[definition.side] || '';
+  const header = kb
+    ? `<header><h3>${escapeHtml(kb.zh)} <span class="en">${escapeHtml(kb.en)}</span></h3><div class="tags"><span class="badge">${escapeHtml(definition.code)}</span>${side ? `<span class="badge">${side}</span>` : ''}<span class="badge">${escapeHtml(kb.region)}</span></div>${kb.bones?.length ? `<p class="bones">${kb.bones.map(escapeHtml).join('・')}</p>` : ''}</header>`
+    : `<header><h3>${escapeHtml(definition.name || definition.code)}</h3><div class="tags"><span class="badge">${escapeHtml(definition.code)}</span>${side ? `<span class="badge">${side}</span>` : ''}<span class="badge">自訂構造</span></div></header>`;
+  const measurements = relatedMeasurements(definition.code).map(item => `<li>${escapeHtml(item.name)}${item.martin ? `（${escapeHtml(item.martin)}）` : ''}：${item.value == null ? '<span class="muted">另一端還沒標</span>' : `<b>${Number(item.value).toFixed(1)}${item.unit === 'deg' ? '°' : item.unit === 'mm' ? ' mm' : ' 單位'}</b>`}</li>`).join('');
+  const exam = (kb?.examPoints || []).map(item => `<li>${escapeHtml(item.text)}${item.source ? `<small>${escapeHtml(item.source)}</small>` : ''}</li>`).join('');
+  card.innerHTML = header
+    + section('定義', paragraph(kb?.definition || definition.desc))
+    + section('在模型上怎麼找', paragraph(kb?.howToFind))
+    + section('解剖意義', paragraph(kb?.anatomy))
+    + section('臨床意義', paragraph(kb?.clinical))
+    + section('國考考點', exam ? `<ul>${exam}</ul>` : '')
+    + section('常見標錯', paragraph(kb?.pitfalls))
+    + section('這份教材的量測', measurements ? `<ul>${measurements}</ul>` : '')
+    + section('相關量測與平面', kb?.relatedMeasurements?.length ? `<p>${kb.relatedMeasurements.map(escapeHtml).join('、')}</p>` : '')
+    + section('標註者補充', paragraph(definition.teach))
+    + (!kb && !definition.desc && !definition.teach ? '<p class="note">標註者還沒幫這個點寫說明：到標註頁點「編輯資料」填「教學說明」。</p>' : '')
+    + (kb?.sources?.length ? `<footer class="sources">出處：${kb.sources.map(escapeHtml).join('；')}</footer>` : '')
+    + (lesson.config.explainApi ? '<div class="apiBox"><button class="btn" id="askApi">延伸說明</button><div id="apiAnswer"></div></div>' : '')
+    + '<div class="cardNav"><button class="btn" id="prevPoint">← 上一個</button><button class="btn" id="nextPoint">下一個 →</button></div>';
+  $('prevPoint').onclick = () => step(-1);
+  $('nextPoint').onclick = () => step(1);
+  if ($('askApi')) $('askApi').onclick = () => askApi(definition);
+}
+
+function overviewHtml() {
+  const rows = (lesson.doc.measurements || []).filter(item => item.value != null)
+    .map(item => `<tr><td>${escapeHtml(item.name)}</td><td class="value">${Number(item.value).toFixed(1)}${item.unit === 'deg' ? '°' : item.unit === 'mm' ? ' mm' : ''}</td></tr>`).join('');
+  return `<header><h3>${escapeHtml(lesson.doc.name || '教材')}</h3></header>
+    <p>點模型上的圖釘或上面的名稱，鏡頭會飛過去並顯示講解；鍵盤 ← → 可以依部位順序逐點看。</p>
+    ${rows ? `<section><h4>這份教材的量測結果</h4><table>${rows}</table></section>` : ''}
+    <p class="note">${escapeHtml(lesson.doc.coordinateSystem || '')}</p>`;
+}
+
+// 預留的 API：只送名稱與內建講解（不送任何影像），回傳 {text}
+async function askApi(definition) {
+  $('apiAnswer').textContent = '詢問中…';
+  try {
+    const response = await fetch(lesson.config.explainApi, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: lesson.libraryModel?.title || lesson.model.fileName, landmark: { code: definition.code, name: definition.name }, reference: explain(definition) }) });
+    const payload = await response.json();
+    $('apiAnswer').textContent = payload.text || payload.answer || JSON.stringify(payload);
+  } catch (error) { $('apiAnswer').textContent = `延伸說明取得失敗：${error.message}`; }
+}
+
+// ---------- 事件與啟動 ----------
+let pointerStart = null;
+renderer.domElement.addEventListener('pointerdown', event => { pointerStart = { x: event.clientX, y: event.clientY }; });
+renderer.domElement.addEventListener('pointerup', event => {
+  const moved = pointerStart ? Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) : Infinity;
+  pointerStart = null;
+  if (moved > 5 || !lesson.model) return;
+  const code = pinAt(event.clientX, event.clientY);
+  if (code) select(code);
+});
+renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
+document.querySelectorAll('[data-view]').forEach(button => button.onclick = () => setView(button.dataset.view));
+$('openModel').onclick = () => hasCatalog() ? openLibrary(lesson.libraryModel?.id || '', { requireSets: true }) : $('modelFile').click();
+$('modelFile').onchange = event => { const files = [...event.target.files]; event.target.value = ''; takeFiles(files); };
+$('importJson').onclick = () => $('importFile').click();
+$('importFile').onchange = event => { const files = [...event.target.files]; event.target.value = ''; takeFiles(files); };
+$('loadingClose').onclick = () => setLoading(false);
+$('labels').onchange = event => { lesson.labels = event.target.checked; if (lesson.model) drawLessonPins(); };
+$('displayMode').onchange = event => { lesson.mode = event.target.value; if (lesson.model) setMaterialMode(lesson.model, lesson.mode, 1); };
+addEventListener('dragover', event => { event.preventDefault(); $('stage').classList.add('dragging'); });
+addEventListener('dragleave', event => { if (!event.relatedTarget) $('stage').classList.remove('dragging'); });
+addEventListener('drop', event => { event.preventDefault(); $('stage').classList.remove('dragging'); takeFiles([...(event.dataTransfer?.files || [])]); });
+addEventListener('keydown', event => {
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  if (event.key === 'Escape') { closeLibrary(); return; }
+  if (event.key === 'ArrowRight') { event.preventDefault(); step(1); }
+  if (event.key === 'ArrowLeft') { event.preventDefault(); step(-1); }
+});
+library.onPick = (model, setName) => openLibraryLesson(model, setName);
+library.onOpenFile = () => $('modelFile').click();
+bindLibraryModal();
+
+(async () => {
+  renderLesson();
+  await loadCatalog();
+  $('openModel').textContent = hasCatalog() ? '選擇教材' : '開啟模型';
+  $('importJson').classList.toggle('hidden', library.server);
+  if (new URLSearchParams(location.search).has('debug')) window.__learn = { lesson, select, library };
+  if (!hasCatalog()) return;
+  if (library.server) try { lesson.config = await (await fetch('/api/config', { cache: 'no-store' })).json(); } catch { /* 沒有設定就不開延伸說明 */ }
+  let last = null;
+  try { last = JSON.parse(localStorage.getItem(LAST_LESSON_KEY) || 'null'); } catch { /* 無 */ }
+  const model = library.models.find(item => item.id === last?.id && item.landmarkSets.some(set => set.name === last.setName));
+  if (model) openLibraryLesson(model, last.setName);
+  else openLibrary('', { requireSets: true });
+})();
+</script>
+</body>
+</html>
