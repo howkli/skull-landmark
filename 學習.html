@@ -171,11 +171,32 @@ table.measure tr.highlight { background: var(--accent-soft); }
 .chip:hover { background: var(--accent-soft); }
 .sensitiveBanner { position: absolute; bottom: 64px; left: 12px; background: rgba(179, 84, 30, .92); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; box-shadow: var(--shadow); z-index: 2; max-width: calc(100% - 24px); }
 
+/* 觸控裝置（手機、平板）：提示改觸控用語 */
+.hintTouch { display: none; }
+@media (pointer: coarse) { .hintMouse { display: none; } .hintTouch { display: inline; } }
+/* 外觀設定：桌面版一直展開；手機版收成一顆按鈕 */
+.displayToggle { display: none; }
+
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 1fr; grid-template-rows: 62vh auto; overflow: auto; }
   .panel { border-left: 0; border-top: 1px solid var(--line); min-height: 60vh; }
   .displayControls { top: auto; bottom: 110px; }
   .tools { margin-left: 0; }
+}
+
+/* 手機（寬度 600px 以下）：工具列精簡、3D 畫面放大、外觀設定收合 */
+@media (max-width: 600px) {
+  .topbar { gap: 8px; padding: 6px 10px; }
+  .brandText small { max-width: 210px; }
+  .tools { gap: 4px; }
+  .btn { padding: 4px 8px; font-size: 13px; }
+  .workspace { grid-template-rows: 68vh auto; }
+  .views button { width: 30px; height: 28px; }
+  .displayControls { top: 12px; bottom: auto; right: 8px; padding: 6px 9px; font-size: 12px; }
+  .displayToggle { display: block; border: 0; background: none; font: inherit; font-weight: 600; color: inherit; padding: 2px 0; text-align: left; cursor: pointer; }
+  .displayControls:not(.open) > label { display: none; }
+  .displayControls input[type=range] { width: 80px; }
+  .stageHint { left: 8px; right: 8px; bottom: 8px; gap: 8px; padding: 6px 10px; font-size: 12px; }
 }
 
 /* 學習頁專用 */
@@ -240,7 +261,7 @@ table.measure tr.highlight { background: var(--accent-soft); }
       <div class="sensitiveBanner hidden" id="sensitiveBanner">大體老師資料：僅限教學使用，請勿截圖外流或上傳到雲端與社群</div>
       <div class="frameBadge hidden" id="frameBadge"></div>
       <div class="loading hidden" id="loading"><div><b id="loadingText">載入中…</b><small id="loadingDetail"></small><button class="btn hidden" id="loadingClose">關閉</button></div></div>
-      <div class="stageHint placing"><b>學習模式</b><span>點圖釘或右邊的名稱看講解；左鍵拖曳旋轉、右鍵平移、滾輪縮放；← → 逐點看。</span></div>
+      <div class="stageHint placing"><b>學習模式</b><span class="hintMouse">點圖釘或右邊的名稱看講解；左鍵拖曳旋轉、右鍵平移、滾輪縮放；← → 逐點看。</span><span class="hintTouch">點圖釘或名稱看講解；單指拖曳旋轉、雙指縮放與平移。</span></div>
       <div class="dropzone" id="dropzone"><div><b>選一份教材開始</b><small>教材＝模型＋一份在標註頁存好的標註。用模型庫時按「選擇教材」；直接開檔時，把 .glb 和對應的 .json 一起拖進來。</small></div></div>
     </section>
     <aside class="panel learnPanel">
@@ -436,7 +457,7 @@ const DEFAULT_INDICES = [
 
 const PRESETS = {
   skull: { label: '頭骨：顱骨測量 33 點＋教學點 5 點', landmarks: SKULL_LANDMARKS, measurements: SKULL_MEASUREMENTS },
-  blank: { label: '空白：點模型就新增自訂點（大體標本用）', landmarks: [], measurements: [] },
+  blank: { label: '空白：點模型就新增自訂點', landmarks: [], measurements: [] },
 };
 const DEFAULT_LANDMARKS = SKULL_LANDMARKS;
 const DEFAULT_MEASUREMENTS = SKULL_MEASUREMENTS;
@@ -883,7 +904,7 @@ function drawLines(lines) {
 const LAST_MODEL_KEY = 'skull-annotator:last-model';
 const library = { server: false, static: false, models: [], onPick: null, onOpenFile: null };
 const hasCatalog = () => library.server || library.static; // 有模型可挑（本機伺服器或靜態目錄）
-const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點（大體）' };
+const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點' };
 
 async function loadCatalog() {
   library.server = false;
@@ -1192,11 +1213,21 @@ async function askApi(definition) {
 
 // ---------- 事件與啟動 ----------
 let pointerStart = null;
-renderer.domElement.addEventListener('pointerdown', event => { pointerStart = { x: event.clientX, y: event.clientY }; });
+// 觸控：兩指以上（縮放、平移）整段手勢都不算點選；手指點一下會微微移動，容許 12px
+let activePointers = 0, multiTouch = false;
+renderer.domElement.addEventListener('pointerdown', event => {
+  activePointers += 1;
+  if (activePointers > 1) multiTouch = true;
+  pointerStart = activePointers === 1 ? { x: event.clientX, y: event.clientY } : null;
+});
+renderer.domElement.addEventListener('pointercancel', () => { pointerStart = null; activePointers = Math.max(0, activePointers - 1); if (!activePointers) multiTouch = false; });
 renderer.domElement.addEventListener('pointerup', event => {
+  activePointers = Math.max(0, activePointers - 1);
+  const gesture = multiTouch;
+  if (!activePointers) multiTouch = false;
   const moved = pointerStart ? Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) : Infinity;
   pointerStart = null;
-  if (moved > 5 || !lesson.model) return;
+  if (gesture || moved > (event.pointerType === 'touch' ? 12 : 5) || !lesson.model) return;
   const code = pinAt(event.clientX, event.clientY);
   if (code) select(code);
 });

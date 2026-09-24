@@ -1,6 +1,6 @@
 {
-  "title": "塑膠頭骨（iPhone 手機版）",
-  "description": "iPhone Object Capture 手機端精簡等級：2.5 萬面、2048 貼圖，細節多在貼圖上。尺寸約大 6 倍、頭骨前傾，標註前先做卡尺校正與法蘭克福擺正。",
-  "preset": "skull",
+  "title": "塑膠頭骨（MAKAR 手機掃描）",
+  "description": "MAKAR（iPhone）手機掃描的塑膠教學頭骨：2.5 萬面、2048 貼圖。清單目前是空白：在模型上點一下就新增一點並命名。尺寸未校正（約實物 6 倍）。",
+  "preset": "blank",
   "sensitive": false
 }

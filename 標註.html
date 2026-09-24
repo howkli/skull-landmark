@@ -171,11 +171,32 @@ table.measure tr.highlight { background: var(--accent-soft); }
 .chip:hover { background: var(--accent-soft); }
 .sensitiveBanner { position: absolute; bottom: 64px; left: 12px; background: rgba(179, 84, 30, .92); color: #fff; padding: 4px 12px; border-radius: 8px; font-size: 12px; box-shadow: var(--shadow); z-index: 2; max-width: calc(100% - 24px); }
 
+/* 觸控裝置（手機、平板）：提示改觸控用語 */
+.hintTouch { display: none; }
+@media (pointer: coarse) { .hintMouse { display: none; } .hintTouch { display: inline; } }
+/* 外觀設定：桌面版一直展開；手機版收成一顆按鈕 */
+.displayToggle { display: none; }
+
 @media (max-width: 900px) {
   .workspace { grid-template-columns: 1fr; grid-template-rows: 62vh auto; overflow: auto; }
   .panel { border-left: 0; border-top: 1px solid var(--line); min-height: 60vh; }
   .displayControls { top: auto; bottom: 110px; }
   .tools { margin-left: 0; }
+}
+
+/* 手機（寬度 600px 以下）：工具列精簡、3D 畫面放大、外觀設定收合 */
+@media (max-width: 600px) {
+  .topbar { gap: 8px; padding: 6px 10px; }
+  .brandText small { max-width: 210px; }
+  .tools { gap: 4px; }
+  .btn { padding: 4px 8px; font-size: 13px; }
+  .workspace { grid-template-rows: 68vh auto; }
+  .views button { width: 30px; height: 28px; }
+  .displayControls { top: 12px; bottom: auto; right: 8px; padding: 6px 9px; font-size: 12px; }
+  .displayToggle { display: block; border: 0; background: none; font: inherit; font-weight: 600; color: inherit; padding: 2px 0; text-align: left; cursor: pointer; }
+  .displayControls:not(.open) > label { display: none; }
+  .displayControls input[type=range] { width: 80px; }
+  .stageHint { left: 8px; right: 8px; bottom: 8px; gap: 8px; padding: 6px 10px; font-size: 12px; }
 }
 </style>
 <script>
@@ -215,7 +236,8 @@ table.measure tr.highlight { background: var(--accent-soft); }
       <div class="sensitiveBanner hidden" id="sensitiveBanner">大體老師資料：僅限教學使用，請勿截圖外流或上傳到雲端與社群</div>
       <div class="frameBadge hidden" id="frameBadge"></div>
       <div class="loading hidden" id="loading"><div><b id="loadingText">載入中…</b><small id="loadingDetail"></small><button class="btn hidden" id="loadingClose">關閉</button></div></div>
-      <div class="displayControls">
+      <div class="displayControls" id="displayControls">
+        <button class="displayToggle" id="displayToggle" type="button" aria-expanded="false">外觀設定 ▾</button>
         <label>外觀 <select id="displayMode"><option value="lit">照片貼圖</option><option value="unlit">貼圖原色（無光影）</option><option value="plain">素色骨頭</option></select></label>
         <label>透明度 <input id="opacity" type="range" min="0.1" max="1" step="0.05" value="1"></label>
         <label>標記大小 <input id="pinScale" type="range" min="0.3" max="3" step="0.1" value="1"></label>
@@ -440,7 +462,7 @@ const DEFAULT_INDICES = [
 
 const PRESETS = {
   skull: { label: '頭骨：顱骨測量 33 點＋教學點 5 點', landmarks: SKULL_LANDMARKS, measurements: SKULL_MEASUREMENTS },
-  blank: { label: '空白：點模型就新增自訂點（大體標本用）', landmarks: [], measurements: [] },
+  blank: { label: '空白：點模型就新增自訂點', landmarks: [], measurements: [] },
 };
 const DEFAULT_LANDMARKS = SKULL_LANDMARKS;
 const DEFAULT_MEASUREMENTS = SKULL_MEASUREMENTS;
@@ -887,7 +909,7 @@ function drawLines(lines) {
 const LAST_MODEL_KEY = 'skull-annotator:last-model';
 const library = { server: false, static: false, models: [], onPick: null, onOpenFile: null };
 const hasCatalog = () => library.server || library.static; // 有模型可挑（本機伺服器或靜態目錄）
-const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點（大體）' };
+const PRESET_LABEL = { skull: '頭骨清單', blank: '自訂點' };
 
 async function loadCatalog() {
   library.server = false;
@@ -1308,7 +1330,7 @@ function buildDocument() {
     measurementDefinitions: state.measurementDefs,
     measurements: results.map(item => ({ code: item.code, name: item.name, type: item.type, points: item.points, value: item.value == null ? null : round(item.value, 3), unit: item.unit })),
     indices: indices.map(item => ({ code: item.code, name: item.name, value: item.value == null ? null : round(item.value, 2), category: item.category })),
-    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 00:36' },
+    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 00:46' },
   };
 }
 
@@ -1477,7 +1499,8 @@ function renderList() {
     button.onclick = () => { state.active = definition.code; state.placing = true; update(); };
     list.appendChild(button);
   });
-  list.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
+  // 手機版清單在 3D 畫面下方、整頁一起捲：自動捲清單會把 3D 畫面頂端捲到工具列底下，所以只在寬螢幕捲
+  if (!matchMedia('(max-width: 900px)').matches) list.querySelector('.active')?.scrollIntoView({ block: 'nearest' });
 }
 
 function renderCurrent(transform) {
@@ -1494,7 +1517,7 @@ function renderCurrent(transform) {
     + (definition.caution ? `<p class="caution">⚠ ${escapeHtml(definition.caution)}</p>` : '')
     + (position ? `<div class="coords">${['X', 'Y', 'Z'].map((axis, i) => `<div><span>${axis}</span><code>${position[i].toFixed(digits)}</code></div>`).join('')}</div>`
       + `<div class="meta">三角面 #${mark.faceIndex ?? '—'} 內固定 · 網格 ${escapeHtml(mark.bone)} · 參考頂點 #${mark.vertexIndex}</div>`
-      : `<div class="meta">${state.model ? '尚未標記；在模型上左鍵點一下就會放在這裡。' : '先載入模型。'}</div>`)
+      : `<div class="meta">${state.model ? '尚未標記；在模型上點一下就會放在這裡。' : '先載入模型。'}</div>`)
     + `<div class="currentActions"><button class="btn" id="editDefinition">編輯資料</button><button class="btn place" id="replace" ${state.model ? '' : 'disabled'}>${mark ? '重新放置' : '放置此點'}</button><button class="btn danger" id="deleteCurrent" ${mark ? '' : 'disabled'}>刪除此點</button></div>`;
   $('editDefinition').onclick = () => openLandmarkModal(definition);
   $('replace').onclick = () => { state.placing = true; if (state.preset === 'blank') state.replaceCode = state.active; renderMode(); };
@@ -1597,9 +1620,10 @@ function renderMode() {
   const quick = state.preset === 'blank' && !state.replaceCode;
   const definition = definitionOf(state.replaceCode || state.active);
   $('modeLabel').textContent = !state.placing ? `瀏覽 · ${Object.keys(state.marks).length} 個標記` : quick ? '新增模式：點一下＝新增一點' : `標註：${labelOf(definition) || '—'}`;
+  const touch = matchMedia('(pointer: coarse)').matches; // 手機、平板：提示改觸控用語
+  const moves = touch ? '單指拖曳旋轉、雙指縮放與平移' : '左鍵拖曳旋轉、右鍵拖曳平移、滾輪縮放；雙擊把旋轉中心移到該處';
   $('hintText').textContent = !state.placing ? '目前只瀏覽，點模型不會放點。按「開始標註」或在清單選一點。'
-    : quick ? '左鍵點模型就新增一個自訂點並命名；左鍵拖曳旋轉、右鍵拖曳平移、滾輪縮放；雙擊把旋轉中心移到該處。'
-      : '左鍵點骨面放點；左鍵拖曳旋轉、右鍵拖曳平移、滾輪縮放；雙擊把旋轉中心移到該處。';
+    : quick ? `點模型就新增一個自訂點並命名；${moves}。` : `點骨面放點；${moves}。`;
 }
 
 // ===== main.js =====
@@ -1614,7 +1638,7 @@ async function openModel(buffer, fileName, { libraryModel = null, setDoc = null 
     const previous = state.model, model = await loadModelBuffer(buffer, fileName);
     disposeModel(previous);
     Object.assign(state, { model, libraryModel, serverSavedAt: '', fileHandle: null, lastSaved: '', rowsSignature: '', highlight: '' });
-    let message = '模型已載入，在表面上左鍵點一下放第一個點', type = 'ok';
+    let message = '模型已載入，在表面上點一下放第一個點', type = 'ok';
     const draft = setDoc ? readDraft(model.hash, setDoc.name) : latestDraft(model.hash);
     if (setDoc) {
       applyDocument(setDoc);
@@ -1805,16 +1829,27 @@ $('pinScale').oninput = event => { state.display.pinScale = Number(event.target.
 $('labels').onchange = event => { state.display.labels = event.target.checked; savePrefs(); update(); };
 
 // ---------- 點選（按下到放開移動 ≤5px 才算點，拖曳旋轉不會誤放） ----------
-let pointerStart = null;
-renderer.domElement.addEventListener('pointerdown', event => { if (event.button === 0) pointerStart = { x: event.clientX, y: event.clientY }; });
+// 觸控：兩指以上（縮放、平移）整段手勢都不算點選；手指點一下會微微移動，容許 12px
+let pointerStart = null, activePointers = 0, multiTouch = false;
+renderer.domElement.addEventListener('pointerdown', event => {
+  activePointers += 1;
+  if (activePointers > 1) multiTouch = true;
+  if (event.button === 0 && activePointers === 1) pointerStart = { x: event.clientX, y: event.clientY };
+});
 renderer.domElement.addEventListener('pointerup', event => {
+  activePointers = Math.max(0, activePointers - 1);
+  const gesture = multiTouch;
+  if (!activePointers) multiTouch = false;
   const moved = pointerStart ? Math.hypot(event.clientX - pointerStart.x, event.clientY - pointerStart.y) : Infinity;
   pointerStart = null;
-  if (event.button !== 0 || moved > 5 || !state.placing || !state.model) return;
+  const tolerance = event.pointerType === 'touch' ? 12 : 5;
+  if (gesture || event.button !== 0 || moved > tolerance || !state.placing || !state.model) return;
   const hit = raycastAt(state.model, event.clientX, event.clientY);
   if (hit) placeActive(hit);
 });
-renderer.domElement.addEventListener('pointercancel', () => { pointerStart = null; });
+renderer.domElement.addEventListener('pointercancel', () => { pointerStart = null; activePointers = Math.max(0, activePointers - 1); if (!activePointers) multiTouch = false; });
+// 手機版外觀設定收成一顆按鈕（桌面版 CSS 讓它一直展開）
+$('displayToggle').onclick = () => { const open = $('displayControls').classList.toggle('open'); $('displayToggle').setAttribute('aria-expanded', String(open)); };
 renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
 renderer.domElement.addEventListener('dblclick', event => {
   const hit = raycastAt(state.model, event.clientX, event.clientY);

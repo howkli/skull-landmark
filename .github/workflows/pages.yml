@@ -28,7 +28,7 @@ jobs:
       - name: 整理要上網的檔案
         run: |
           mkdir _site
-          cp index.html 標註.html 學習.html library.json _site/
+          cp index.html 404.html 標註.html 學習.html library.json _site/
           cp -r models _site/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
