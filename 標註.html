@@ -1453,7 +1453,7 @@ function buildDocument() {
     measurementDefinitions: state.measurementDefs,
     measurements: results.map(item => ({ code: item.code, name: item.name, type: item.type, points: item.points, value: item.value == null ? null : round(item.value, 3), unit: item.unit })),
     indices: indices.map(item => ({ code: item.code, name: item.name, value: item.value == null ? null : round(item.value, 2), category: item.category })),
-    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 03:07' },
+    tool: { name: '頭骨 Landmark 標註器', build: '2026-09-25 22:58' },
   };
 }
 
